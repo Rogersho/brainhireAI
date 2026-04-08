@@ -1,11 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import { Brain, Menu, X } from "lucide-react";
+import { Brain, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
+  const dashboardLink = (session?.user as any)?.role === "Candidate" ? "/candidate-dashboard" : "/dashboard";
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -23,8 +28,17 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
-          <Button variant="ghost" asChild><Link href="/login">Log in</Link></Button>
-          <Button asChild><Link href="/signup">Get Started</Link></Button>
+          {session ? (
+            <>
+              <Button variant="ghost" asChild><Link href={dashboardLink}>Dashboard</Link></Button>
+              <Button onClick={() => signOut({ callbackUrl: '/' })}><LogOut className="h-4 w-4 mr-2" /> Sign Out</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" asChild><Link href="/login">Log in</Link></Button>
+              <Button asChild><Link href="/signup">Get Started</Link></Button>
+            </>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-2">
@@ -41,8 +55,17 @@ export function Navbar() {
           <a href="#how-it-works" className="block text-sm font-medium text-muted-foreground" onClick={() => setOpen(false)}>How It Works</a>
           <a href="#testimonials" className="block text-sm font-medium text-muted-foreground" onClick={() => setOpen(false)}>Testimonials</a>
           <div className="flex gap-2 pt-2">
-            <Button variant="ghost" asChild className="flex-1"><Link href="/login">Log in</Link></Button>
-            <Button asChild className="flex-1"><Link href="/signup">Get Started</Link></Button>
+            {session ? (
+              <>
+                <Button variant="ghost" asChild className="flex-1" onClick={() => setOpen(false)}><Link href={dashboardLink}>Dashboard</Link></Button>
+                <Button className="flex-1" onClick={() => signOut({ callbackUrl: '/' })}><LogOut className="h-4 w-4 mr-2" /> Sign Out</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild className="flex-1"><Link href="/login">Log in</Link></Button>
+                <Button asChild className="flex-1"><Link href="/signup">Get Started</Link></Button>
+              </>
+            )}
           </div>
         </div>
       )}

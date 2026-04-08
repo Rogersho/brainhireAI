@@ -1,53 +1,99 @@
 "use client";
 
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Brain, Loader2 } from "lucide-react";
 
-export default function Login() {
+export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const res = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+    });
+
+    if (res?.error) {
+      setError(res.error);
+      setLoading(false);
+    } else {
+      router.push("/dashboard"); 
+      router.refresh();
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
-      <div className="absolute top-4 right-4"><ThemeToggle /></div>
-      <div className="w-full max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2 font-heading text-2xl font-bold text-foreground mb-8">
-          <Brain className="h-8 w-8 text-primary" />
-          Brainhire AI
-        </Link>
-
-        <Card className="border-border">
-          <CardHeader className="text-center">
-            <CardTitle className="font-heading text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-background px-4">
+      <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold mb-8">
+        <Brain className="h-8 w-8 text-primary" />
+        Brainhire AI
+      </Link>
+      
+      <Card className="w-full max-w-md border-border shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-heading font-bold text-center">Welcome back</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to sign in
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm font-medium text-destructive bg-destructive/10 rounded-md border border-destructive/20 text-center">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="name@example.com" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
-              </div>
-              <Input id="password" type="password" placeholder="••••••••" />
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
-            <Button className="w-full" size="lg" onClick={() => router.push('/dashboard')}>
-              Sign In
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link href="/signup" className="text-primary hover:underline font-medium">Sign up</Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          </form>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link href="/signup" className="text-primary hover:underline font-medium">
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

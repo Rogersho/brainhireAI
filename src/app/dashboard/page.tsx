@@ -4,44 +4,44 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, UserX, Brain, Briefcase, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-
-const stats = [
-  { label: "Total Applicants", value: "1,247", icon: Users, change: "+12%" },
-  { label: "Shortlisted", value: "186", icon: UserCheck, change: "+8%" },
-  { label: "Rejected", value: "892", icon: UserX, change: "-3%" },
-  { label: "In Screening", value: "169", icon: Brain, change: "+24%" },
-  { label: "Open Positions", value: "23", icon: Briefcase, change: "+2" },
-  { label: "Avg. Score", value: "72.4", icon: TrendingUp, change: "+5.2" },
-];
-
-const weeklyData = [
-  { day: "Mon", applicants: 32, screened: 28 },
-  { day: "Tue", applicants: 45, screened: 40 },
-  { day: "Wed", applicants: 28, screened: 25 },
-  { day: "Thu", applicants: 52, screened: 48 },
-  { day: "Fri", applicants: 38, screened: 35 },
-  { day: "Sat", applicants: 15, screened: 12 },
-  { day: "Sun", applicants: 8, screened: 6 },
-];
-
-const sourceData = [
-  { name: "Internal Pool", value: 35 },
-  { name: "LinkedIn", value: 28 },
-  { name: "Indeed", value: 22 },
-  { name: "Direct Apply", value: 15 },
-];
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchJobs } from "@/store/slices/jobsSlice";
+import { fetchApplicants } from "@/store/slices/applicantsSlice";
 
 const COLORS = ["hsl(199, 89%, 48%)", "hsl(215, 50%, 12%)", "hsl(199, 70%, 70%)", "hsl(215, 30%, 50%)"];
 
-const recentApplicants = [
-  { name: "Alex Rivera", role: "Senior Frontend Dev", score: 92, status: "Shortlisted" },
-  { name: "Priya Patel", role: "Data Scientist", score: 88, status: "Shortlisted" },
-  { name: "Marcus Chen", role: "Product Manager", score: 75, status: "In Review" },
-  { name: "Sofia Andersen", role: "UX Designer", score: 71, status: "In Review" },
-  { name: "James Okafor", role: "Backend Engineer", score: 64, status: "Pending" },
-];
-
 export default function Dashboard() {
+  const dispatch = useAppDispatch();
+  const { items: jobs, status: jobsStatus } = useAppSelector((state) => state.jobs);
+  const { items: applicants, status: appStatus } = useAppSelector((state) => state.applicants);
+
+  useEffect(() => {
+    if (jobsStatus === 'idle') dispatch(fetchJobs());
+    if (appStatus === 'idle') dispatch(fetchApplicants());
+  }, [jobsStatus, appStatus, dispatch]);
+
+  const totalApplicants = applicants.length;
+  const shortlisted = applicants.filter((a: any) => a.status === 'Shortlisted').length;
+  const rejected = applicants.filter((a: any) => a.status === 'Rejected').length;
+  const inReview = applicants.filter((a: any) => a.status === 'In Review' || a.status === 'Pending').length;
+  const openPositions = jobs.length;
+  
+  const avgScore = applicants.length 
+    ? (applicants.reduce((sum: number, a: any) => sum + (a.score || 0), 0) / applicants.length).toFixed(1) 
+    : "0.0";
+
+  const dynamicStats = [
+    { label: "Total Applicants", value: totalApplicants.toString(), icon: Users, change: "+12%" },
+    { label: "Shortlisted", value: shortlisted.toString(), icon: UserCheck, change: "+8%" },
+    { label: "Rejected", value: rejected.toString(), icon: UserX, change: "-3%" },
+    { label: "In Review", value: inReview.toString(), icon: Brain, change: "+24%" },
+    { label: "Open Positions", value: openPositions.toString(), icon: Briefcase, change: "+2" },
+    { label: "Avg. Score", value: avgScore, icon: TrendingUp, change: "+5.2" },
+  ];
+
+  const recentApplicantsDynamic = [...applicants].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -51,7 +51,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {stats.map((stat) => (
+          {dynamicStats.map((stat) => (
             <Card key={stat.label} className="border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -68,62 +68,25 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg">Weekly Activity</CardTitle>
+              <CardTitle className="font-heading text-lg">Weekly Activity (Coming Soon)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--foreground))",
-                    }}
-                  />
-                  <Bar dataKey="applicants" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} name="Applicants" />
-                  <Bar dataKey="screened" fill="hsl(215, 50%, 12%)" radius={[4, 4, 0, 0]} name="Screened" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground">
+                Charts will be populated here
+              </div>
             </CardContent>
+  
           </Card>
 
           <Card className="border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg">Source Distribution</CardTitle>
+              <CardTitle className="font-heading text-lg">Source Distribution (Coming Soon)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={sourceData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4}>
-                    {sourceData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--foreground))",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2 mt-2">
-                {sourceData.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                      <span className="text-muted-foreground">{item.name}</span>
-                    </div>
-                    <span className="font-medium text-foreground">{item.value}%</span>
-                  </div>
-                ))}
+              <div className="flex justify-center items-center h-[200px] text-muted-foreground">
+                 Pending AI Parser Integration
               </div>
+  
             </CardContent>
           </Card>
         </div>
@@ -144,8 +107,8 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentApplicants.map((a) => (
-                    <tr key={a.name} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                  {recentApplicantsDynamic.map((a: any) => (
+                    <tr key={a._id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
                       <td className="py-3 pr-4 font-medium text-sm text-foreground">{a.name}</td>
                       <td className="py-3 pr-4 text-sm text-muted-foreground">{a.role}</td>
                       <td className="py-3 pr-4">

@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Briefcase, Users, Brain, Settings, Bell, LogOut,
 } from "lucide-react";
@@ -59,10 +60,10 @@ function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <Link href="/" className="text-muted-foreground hover:text-foreground inline-flex items-center">
+                <button onClick={() => signOut({ callbackUrl: '/' })} className="text-muted-foreground hover:text-foreground inline-flex items-center w-full focus:outline-none">
                   <LogOut className="mr-2 h-4 w-4 shrink-0" />
                   {!collapsed && <span>Log out</span>}
-                </Link>
+                </button>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -73,6 +74,9 @@ function AppSidebar() {
 }
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
+  const { data: session } = useSession();
+  const initials = session?.user?.name ? session.user.name.substring(0, 2).toUpperCase() : "JD";
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -88,7 +92,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
             </Button>
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold border border-primary/20">
-              JD
+              {initials}
             </div>
           </div>
         </header>
