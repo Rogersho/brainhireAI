@@ -11,7 +11,7 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 font-heading text-xl font-bold text-foreground mb-4">
-              <Brain className="h-6 w-6 text-primary animate-pulse" />
+              <img src="/logo.png" alt="Brainhire AI" className="h-7 w-auto animate-pulse" />
               <span>Brainhire <span className="text-primary">AI</span></span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed mb-6">

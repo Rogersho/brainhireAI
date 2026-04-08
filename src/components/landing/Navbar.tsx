@@ -11,7 +11,7 @@ export function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-heading text-xl font-bold text-foreground">
-          <Brain className="h-7 w-7 text-primary" />
+          <img src="/logo.png" alt="Brainhire AI" className="h-8 w-auto" />
           Brainhire AI
         </Link>
 
