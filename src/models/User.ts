@@ -7,7 +7,10 @@ export const UserSchema = new Schema(
     password: { type: String, required: true },
     role: { type: String, enum: ["Recruiter", "Candidate"], default: "Candidate" },
     savedJobs: [{ type: Schema.Types.ObjectId, ref: 'Job' }],
+    createdJobs: [{ type: Schema.Types.ObjectId, ref: 'Job' }],
     resumeText: { type: String },
+    resumeHash: { type: String }, // Hash of resume for cache validation
+    resumeCachedAt: { type: Date }, // When the CV was last analyzed
     skills: { type: [String], default: [] },
     aiAnalysis: {
       strengths: { type: [String], default: [] },

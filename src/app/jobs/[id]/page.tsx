@@ -11,20 +11,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { ArrowLeft, Users, MapPin, Calendar, Brain, Heart, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchApplicantsByJob } from "@/store/slices/applicantsSlice";
+import { toast } from "sonner";
+import { Eye } from "lucide-react";
 
 export default function JobDetailPage() {
   const { id } = useParams();
+  const dispatch = useAppDispatch();
   const { data: session } = useSession();
   const isCandidate = (session?.user as any)?.role === "Candidate";
   
   const jobs = useAppSelector(state => state.jobs.items);
   const job: any = jobs.find((j: any) => j._id === id);
 
+  const { items: applicants, status: appStatus } = useAppSelector(state => state.applicants);
+
   const [saved, setSaved] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [screening, setScreening] = useState(false);
+
+  useEffect(() => {
+    if (id && !isCandidate) {
+      dispatch(fetchApplicantsByJob(id as string));
+    }
+  }, [id, dispatch, isCandidate]);
 
   useEffect(() => {
     if (session?.user && isCandidate && id) {
@@ -43,7 +56,7 @@ export default function JobDetailPage() {
     }
   }, [session, isCandidate, id]);
 
-  if (!job) return <div className="p-8 text-center text-muted-foreground mt-12 bg-muted/20 border rounded-lg max-w-xl mx-auto">Please navigate back to Jobs and refresh. Data is still loading to Redux.</div>;
+  if (!job) return <DashboardLayout><div className="p-8 text-center text-muted-foreground mt-12 bg-muted/20 border rounded-lg max-w-xl mx-auto">Please navigate back to Jobs and refresh. Data is still loading...</div></DashboardLayout>;
 
   const Layout = isCandidate ? CandidateLayout : DashboardLayout;
 
@@ -74,7 +87,7 @@ export default function JobDetailPage() {
           jobId: job._id,
           userId: (session?.user as any)?.id,
           role: job.title,
-          experience: data?.parsedText?.substring(0, 500) || "No parseable text", 
+          experience: data?.parsedText?.substring(0, 10000) || "Incomplete Resume Data", 
           source: "Job Board",
           skills: []
         })
@@ -182,17 +195,51 @@ export default function JobDetailPage() {
             ) : (
               <>
                 <Card className="border-border shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="font-heading text-base flex items-center gap-2">
-                      <Brain className="h-4 w-4 text-primary" />Applicants Leaderboard
+                  <CardHeader className="pb-3 border-b">
+                    <CardTitle className="font-heading text-base flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />Applicants
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">{applicants.length}</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Run screening to rank applicants</p>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                      {appStatus === 'loading' && <p className="p-4 text-center text-xs text-muted-foreground">Loading...</p>}
+                      {applicants.length === 0 && appStatus !== 'loading' && (
+                        <p className="p-6 text-center text-xs text-muted-foreground italic">No applicants yet</p>
+                      )}
+                      {applicants.map((a: any) => (
+                        <div key={a._id} className="p-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                             <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+                                {a.name.split(" ").map((n: string) => n[0]).join("")}
+                             </div>
+                             <div className="truncate">
+                                <p className="text-xs font-semibold text-foreground truncate">{a.name}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                   <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
+                                      <div className="h-full bg-primary" style={{ width: `${a.score || 0}%` }} />
+                                   </div>
+                                   <span className="text-[9px] text-muted-foreground font-medium">{a.score || 0}%</span>
+                                </div>
+                             </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Link href={`/applicants/${a._id}`}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
-                <Button className="w-full shadow-md font-bold" asChild>
-                  <Link href="/screening"><Brain className="mr-2 h-4 w-4" />Run AI Screening</Link>
+                <Button 
+                  className="w-full shadow-md font-bold" 
+                  onClick={handleRunScreening}
+                  disabled={screening || applicants.length === 0}
+                >
+                  <Brain className={`mr-2 h-4 w-4 ${screening ? 'animate-spin' : ''}`} />
+                  {screening ? "AI is Screening..." : "Run AI Screening"}
                 </Button>
               </>
             )}
@@ -201,4 +248,31 @@ export default function JobDetailPage() {
       </div>
     </Layout>
   );
+
+  async function handleRunScreening() {
+    setScreening(true);
+    try {
+      const response = await fetch('/api/screening/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: id }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        dispatch(fetchApplicantsByJob(id as string));
+        toast.success(`AI Screening complete! ${data.data.length} candidates analyzed.`);
+      } else {
+        toast.error(data.error || "Screening failed");
+        console.error('Screening failed:', data.error);
+      }
+    } catch (error) {
+      console.error('Screening error:', error);
+    } finally {
+      setScreening(false);
+    }
+  }
 }
+
+

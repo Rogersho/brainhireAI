@@ -8,14 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Eye, UploadCloud, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchApplicants } from "@/store/slices/applicantsSlice";
+import { fetchApplicants, fetchMyApplicants, updateApplicant } from "@/store/slices/applicantsSlice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { unwrapResult } from "@reduxjs/toolkit";
 
 export default function ApplicantsPage() {
+  const { data: session } = useSession();
+  const isRecruiter = (session?.user as any)?.role === "Recruiter";
+
   const dispatch = useAppDispatch();
-  const { items: applicants, status } = useAppSelector((state) => state.applicants);
+  const { items: applicantsRaw, status } = useAppSelector((state) => state.applicants);
+  const applicants = applicantsRaw as any[];
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [file, setFile] = useState<File | null>(null);
@@ -24,9 +31,14 @@ export default function ApplicantsPage() {
 
   useEffect(() => {
     if (status === 'idle') {
-      dispatch(fetchApplicants());
+      // Recruiters see only their applicants, others see all
+      if (isRecruiter) {
+        dispatch(fetchMyApplicants());
+      } else {
+        dispatch(fetchApplicants());
+      }
     }
-  }, [status, dispatch]);
+  }, [status, dispatch, isRecruiter]);
 
   const filtered = applicants.filter((a: any) => {
     const matchSearch = a.name.toLowerCase().includes(search.toLowerCase()) || a.role.toLowerCase().includes(search.toLowerCase());
@@ -37,10 +49,10 @@ export default function ApplicantsPage() {
   const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
-    
+
     const formData = new FormData();
     formData.append("file", file);
-    
+
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const { data } = await res.json();
@@ -52,15 +64,27 @@ export default function ApplicantsPage() {
     }
   };
 
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      const applicant = applicants.find((a: any) => a._id === id);
+      if (!applicant) return;
+      const result = await dispatch(updateApplicant({ id, applicantData: { ...(applicant as any), status: newStatus } }) as any);
+      unwrapResult(result);
+      toast.success(`Status updated to ${newStatus}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Applicants</h1>
-            <p className="text-muted-foreground text-sm mt-1">Browse and manage all candidates</p>
+            <p className="text-muted-foreground text-sm mt-1">{isRecruiter ? "Manage candidates for your posted jobs" : "Browse all candidates"}</p>
           </div>
-          
+
           <Dialog>
             <DialogTrigger asChild>
               <Button>
@@ -81,15 +105,15 @@ export default function ApplicantsPage() {
                   </div>
                 ) : (
                   <>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="application/pdf"
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                       className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                     />
-                    <Button 
-                      className="w-full" 
-                      onClick={handleUpload} 
+                    <Button
+                      className="w-full"
+                      onClick={handleUpload}
                       disabled={!file || uploading}
                     >
                       {uploading ? "Extracting text..." : "Parse Document"}
@@ -161,13 +185,27 @@ export default function ApplicantsPage() {
                     </div>
                   </td>
                   <td className="py-3 pr-4">
-                    <Badge variant={
-                      a.status === "Shortlisted" ? "default" :
-                      a.status === "Rejected" ? "destructive" :
-                      "secondary"
-                    } className="text-xs">
-                      {a.status}
-                    </Badge>
+                    {isRecruiter ? (
+                      <Select value={a.status} onValueChange={(val) => handleUpdateStatus(a._id, val)}>
+                        <SelectTrigger className="h-8 w-28 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Shortlisted">Shortlisted</SelectItem>
+                          <SelectItem value="In Review">In Review</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant={
+                        a.status === "Shortlisted" ? "default" :
+                          a.status === "Rejected" ? "destructive" :
+                            "secondary"
+                      } className="text-xs">
+                        {a.status}
+                      </Badge>
+                    )}
                   </td>
                   <td className="py-3">
                     <Button variant="ghost" size="sm" asChild>

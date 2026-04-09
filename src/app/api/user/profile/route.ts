@@ -3,37 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-async function analyzeResumeWithGemini(buffer: Buffer) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-  const base64 = buffer.toString('base64');
-
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'application/pdf',
-        data: base64,
-      },
-    },
-    `You are an expert technical recruiter AI analyzing a candidate resume.
-Extract all information and return ONLY a JSON object with this exact structure (no markdown, no extra text):
-{
-  "extractedText": "the full resume text",
-  "skills": ["skill1", "skill2", "skill3"],
-  "strengths": ["A specific observable strength from the CV"],
-  "weaknesses": ["A specific gap or improvement area based on the CV"]
-}
-
-Be specific and insightful. Skills should be technical and soft skills. Strengths 2-4 items, weaknesses 2-3 items.`,
-  ]);
-
-  const text = result.response.text().trim().replace(/```json/g, '').replace(/```/g, '').trim();
-  return JSON.parse(text);
-}
 
 export async function POST(req: Request) {
   try {
@@ -46,38 +15,37 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File | null;
 
     if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Please upload a PDF.' }, { status: 400 });
+
+    // Support multiple file types
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Please upload a PDF, DOC, DOCX, or CSV file.' }, { status: 400 });
     }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const aiData = await analyzeResumeWithGemini(buffer);
 
     await dbConnect();
     const user = await User.findById((session.user as any).id);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    user.resumeText = aiData.extractedText || '';
-    user.skills = aiData.skills || [];
+    // Just store the file name without any AI analysis
+    user.resumeText = file.name; // Store filename as text
+    user.skills = [];
     user.aiAnalysis = {
-      strengths: aiData.strengths || [],
-      weaknesses: aiData.weaknesses || [],
+      strengths: [],
+      weaknesses: [],
     };
     await user.save();
 
     return NextResponse.json({
       success: true,
+      message: `${file.name} uploaded successfully!`,
       profile: {
-        skills: user.skills,
-        aiAnalysis: user.aiAnalysis,
+        fileName: file.name,
       },
     });
 
   } catch (error: any) {
     console.error('Profile Upload Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
   }
 }
 

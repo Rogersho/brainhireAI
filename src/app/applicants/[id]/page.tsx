@@ -4,59 +4,43 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Mail, MapPin, Calendar, Briefcase, Star, TrendingUp, TrendingDown, Minus, Brain, Download } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, Brain, Download, CheckCircle, AlertCircle, UserCheck, UserX } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
-
-const candidateData = {
-  name: "Alex Rivera",
-  email: "alex.rivera@email.com",
-  location: "San Francisco, CA",
-  experience: "7 years",
-  appliedFor: "Senior Frontend Developer",
-  source: "LinkedIn",
-  appliedDate: "Jan 18, 2026",
-  overallScore: 92,
-  skills: [
-    { name: "React", level: 95 },
-    { name: "TypeScript", level: 90 },
-    { name: "Node.js", level: 82 },
-    { name: "CSS/Tailwind", level: 88 },
-    { name: "GraphQL", level: 75 },
-    { name: "Testing", level: 70 },
-  ],
-  education: "M.S. Computer Science — Stanford University",
-  previousRoles: [
-    { title: "Senior Frontend Engineer", company: "TechCorp", duration: "2022 - Present" },
-    { title: "Frontend Developer", company: "StartupXYZ", duration: "2019 - 2022" },
-    { title: "Junior Developer", company: "WebAgency", duration: "2018 - 2019" },
-  ],
-  aiInsights: {
-    summary: "Alex is a highly qualified candidate with strong frontend expertise and leadership experience. Their skill set aligns closely with the job requirements, particularly in React and TypeScript. They demonstrate growth trajectory and a solid technical foundation.",
-    strengths: [
-      "Deep expertise in React ecosystem with 5+ years experience",
-      "Strong TypeScript skills with demonstrated best practices",
-      "Leadership experience mentoring junior developers",
-      "Open-source contributions showing community engagement",
-    ],
-    weaknesses: [
-      "Limited backend experience compared to full-stack candidates",
-      "No prior experience with the company's specific tech stack (GraphQL)",
-      "Could benefit from more system design knowledge",
-    ],
-    recommendation: "Strongly Recommended",
-    fitScore: 92,
-    cultureFit: 85,
-    technicalFit: 94,
-    experienceFit: 88,
-  },
-};
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchApplicantById, updateApplicant } from "@/store/slices/applicantsSlice";
+import { toast } from "sonner";
+import { unwrapResult } from "@reduxjs/toolkit";
 
 export default function CandidateProfilePage() {
   const { id } = useParams();
-  // In a real app we'd fetch by id, here we use static data
-  const candidate = candidateData;
+  const dispatch = useAppDispatch();
+  const { currentApplicant: candidate, status: appStatus } = useAppSelector((state) => state.applicants);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchApplicantById(id as string));
+    }
+  }, [id, dispatch]);
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!candidate) return;
+
+    try {
+      const result = await dispatch(updateApplicant({ id: candidate._id, applicantData: { ...(candidate as any), status: newStatus } }) as any);
+      unwrapResult(result);
+      toast.success(`Applicant status updated to ${newStatus}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    }
+  };
+
+  if (appStatus === 'loading') return <DashboardLayout><div className="p-8 text-center text-muted-foreground">Loading candidate profile...</div></DashboardLayout>;
+  if (!candidate) return <DashboardLayout><div className="p-8 text-center text-muted-foreground">Candidate not found.</div></DashboardLayout>;
+
+  const initials = candidate.name.split(" ").map((n: string) => n[0]).join("");
 
   return (
     <DashboardLayout>
@@ -72,32 +56,49 @@ export default function CandidateProfilePage() {
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold shrink-0">
-                    AR
+                    {initials}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <div>
                         <h1 className="font-heading text-2xl font-bold text-foreground">{candidate.name}</h1>
                         <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{candidate.email}</span>
-                          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{candidate.location}</span>
-                          <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{candidate.experience}</span>
+                          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{candidate.location || "Remote"}</span>
+                          <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{candidate.experience || "N/A"}</span>
                         </div>
                       </div>
                       <div className="text-center">
                         <div className="h-14 w-14 rounded-full border-4 border-primary flex items-center justify-center">
-                          <span className="font-heading text-lg font-bold text-primary">{candidate.overallScore}</span>
+                          <span className="font-heading text-lg font-bold text-primary">{candidate.score}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">AI Score</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-3">
-                      <Badge>Shortlisted</Badge>
+                      <Badge variant={
+                        candidate.status === "Shortlisted" ? "default" :
+                          candidate.status === "Rejected" ? "destructive" :
+                            "secondary"
+                      }>
+                        {candidate.status}
+                      </Badge>
                       <Badge variant="outline">{candidate.source}</Badge>
-                      <Badge variant="secondary">{candidate.appliedFor}</Badge>
+                      <Badge variant="secondary">{candidate.role}</Badge>
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Experience */}
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="font-heading text-lg">Detailed Experience</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {candidate.experience || "Resume text is still being processed or was missing from the upload. Please verify with the candidate's original document."}
+                </p>
               </CardContent>
             </Card>
 
@@ -106,37 +107,14 @@ export default function CandidateProfilePage() {
               <CardHeader>
                 <CardTitle className="font-heading text-lg">Skills Assessment</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {candidate.skills.map((skill) => (
-                  <div key={skill.name} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-foreground font-medium">{skill.name}</span>
-                      <span className="text-muted-foreground">{skill.level}%</span>
-                    </div>
-                    <Progress value={skill.level} className="h-2" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Experience */}
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="font-heading text-lg">Experience</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">{candidate.education}</p>
-                <div className="space-y-4">
-                  {candidate.previousRoles.map((role, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{role.title}</p>
-                        <p className="text-xs text-muted-foreground">{role.company} · {role.duration}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="flex flex-wrap gap-2">
+                {candidate.skills && candidate.skills.length > 0 ? (
+                  candidate.skills.map((skill: string) => (
+                    <Badge key={skill} variant="secondary" className="px-3 py-1">{skill}</Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No skills listed.</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -146,69 +124,100 @@ export default function CandidateProfilePage() {
             <Card className="border-border border-primary/30">
               <CardHeader>
                 <CardTitle className="font-heading text-lg flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-primary" />AI Evaluation
+                  <Brain className="h-5 w-5 text-primary" />Actions & Evaluation
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div>
-                  <Badge className="mb-3">{candidate.aiInsights.recommendation}</Badge>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{candidate.aiInsights.summary}</p>
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Update Status</h4>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <Button
+                      variant="default"
+                      className="bg-success hover:bg-success/90 text-white"
+                      size="sm"
+                      onClick={() => handleUpdateStatus("Shortlisted")}
+                    >
+                      <UserCheck className="mr-2 h-4 w-4" /> Accept
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleUpdateStatus("Rejected")}
+                    >
+                      <UserX className="mr-2 h-4 w-4" /> Decline
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pb-4 border-b border-border mb-4">
+                    <Button
+                      variant={candidate.status === "In Review" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleUpdateStatus("In Review")}
+                    >
+                      In Review
+                    </Button>
+                    <Button
+                      variant={candidate.status === "Pending" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleUpdateStatus("Pending")}
+                    >
+                      Waitlist
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-primary" /> AI Match Report
+                  </h4>
+                  <div className="space-y-4">
+                    {candidate.aiStrengths && (
+                      <div>
+                        <p className="text-[10px] font-bold text-success uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <CheckCircle className="h-2.5 w-2.5" /> Strengths
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {candidate.aiStrengths}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {candidate.aiGaps && (
+                      <div>
+                        <p className="text-[10px] font-bold text-warning uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5" /> Gaps / Risks
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {candidate.aiGaps}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">
+                        Recommendation
+                      </p>
+                      <p className="text-xs text-foreground font-medium italic">
+                        "{candidate.aiRecommendation || 'Further vetting recommended'}"
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-foreground">Fit Breakdown</h4>
-                  {[
-                    { label: "Technical Fit", value: candidate.aiInsights.technicalFit },
-                    { label: "Experience Fit", value: candidate.aiInsights.experienceFit },
-                    { label: "Culture Fit", value: candidate.aiInsights.cultureFit },
-                  ].map((item) => (
-                    <div key={item.label} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{item.label}</span>
-                        <span className="font-medium text-foreground">{item.value}%</span>
-                      </div>
-                      <Progress value={item.value} className="h-1.5" />
+                  <h4 className="text-sm font-semibold text-foreground">Score Assessment</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">AI Confidence</span>
+                      <span className="font-medium text-foreground">{candidate.score}%</span>
                     </div>
-                  ))}
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1">
-                    <TrendingUp className="h-4 w-4 text-success" />Strengths
-                  </h4>
-                  <ul className="space-y-1">
-                    {candidate.aiInsights.strengths.map((s, i) => (
-                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                        <Star className="h-3 w-3 text-primary mt-0.5 shrink-0" />
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1">
-                    <TrendingDown className="h-4 w-4 text-warning" />Areas of Concern
-                  </h4>
-                  <ul className="space-y-1">
-                    {candidate.aiInsights.weaknesses.map((w, i) => (
-                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                        <Minus className="h-3 w-3 text-warning mt-0.5 shrink-0" />
-                        {w}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button className="flex-1" size="sm">Approve</Button>
-                  <Button variant="outline" className="flex-1" size="sm">Reject</Button>
+                    <Progress value={candidate.score} className="h-1.5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             <Button variant="outline" className="w-full">
-              <Download className="mr-2 h-4 w-4" />Download Resume
+              <Download className="mr-2 h-4 w-4" />Download Original Resume
             </Button>
           </div>
         </div>

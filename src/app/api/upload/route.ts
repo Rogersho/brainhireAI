@@ -1,23 +1,37 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKeys = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
+  let lastError: any = null;
   const base64 = buffer.toString('base64');
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'application/pdf',
-        data: base64,
-      },
-    },
-    'Extract all readable text from this PDF document. Return the raw text content only, with no formatting or commentary.',
-  ]);
 
-  return result.response.text();
+  for (const apiKey of apiKeys) {
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const modelName = process.env.NEXT_PUBLIC_GEMINI_MODEL || "gemini-3-flash-preview";
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: base64,
+          },
+        },
+        'Extract all readable text from this PDF document, including work experience, skills, and summary. Return the raw text only.',
+      ]);
+
+      return result.response.text();
+    } catch (error: any) {
+      console.error(`OCR Key Failed (${apiKey.substring(0, 8)}...):`, error.message);
+      lastError = error;
+      continue;
+    }
+  }
+
+  throw new Error(lastError?.message || "PDF Extraction service is temporarily down.");
 }
 
 export async function POST(req: Request) {

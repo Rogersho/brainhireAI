@@ -6,6 +6,9 @@ export interface IApplicant extends Document {
   userId?: mongoose.Types.ObjectId;
   role: string; 
   score: number;
+  aiStrengths?: string;
+  aiGaps?: string;
+  aiRecommendation?: string;
   status: 'Shortlisted' | 'In Review' | 'Pending' | 'Rejected';
   source: string;
   skills: string[];
@@ -22,6 +25,9 @@ const ApplicantSchema: Schema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     role: { type: String, required: true },
     score: { type: Number, default: 0 },
+    aiStrengths: { type: String, default: '' },
+    aiGaps: { type: String, default: '' },
+    aiRecommendation: { type: String, default: '' },
     status: {
       type: String,
       enum: ['Shortlisted', 'In Review', 'Pending', 'Rejected'],

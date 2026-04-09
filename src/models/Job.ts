@@ -7,6 +7,7 @@ export interface IJob extends Document {
   description: string;
   skills: string[];
   status: 'Active' | 'Paused' | 'Closed';
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ const JobSchema: Schema = new Schema(
       enum: ['Active', 'Paused', 'Closed'],
       default: 'Active',
     },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
 );
