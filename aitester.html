@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal AI API Tester</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            box-sizing: border-box;
+            background: #0f172a;
+            color: #fff;
+            font-family: inherit;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            white-space: pre-wrap;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            min-height: 50px;
+        }
+
+        .error {
+            color: #f87171;
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .success {
+            color: #4ade80;
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: #334155;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1>🚀 Universal AI API Tester</h1>
+
+        <div class="field">
+            <label for="provider">AI Provider</label>
+            <select id="provider">
+                <option value="anthropic">Claude (Anthropic)</option>
+                <option value="gemini">Gemini (Google)</option>
+                <option value="openai">GPT (OpenAI)</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="apiKey">API Key <span class="badge" id="keyFormat">sk-ant...</span></label>
+            <input type="text" id="apiKey" placeholder="Paste your API key here..." spellcheck="false">
+        </div>
+
+        <div class="field">
+            <label for="prompt">Test Prompt</label>
+            <textarea id="prompt" rows="2">Hello!</textarea>
+        </div>
+
+        <button id="sendBtn">Test Connection</button>
+
+        <div id="result">Waiting for input...</div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('sendBtn');
+        const providerSel = document.getElementById('provider');
+        const apiKeyIn = document.getElementById('apiKey');
+        const resultBox = document.getElementById('result');
+        const keyFormat = document.getElementById('keyFormat');
+
+        providerSel.addEventListener('change', () => {
+            const val = providerSel.value;
+            if (val === 'anthropic') keyFormat.textContent = 'sk-ant...';
+            else if (val === 'gemini') keyFormat.textContent = 'AIzaSy...';
+            else keyFormat.textContent = 'sk-...';
+        });
+
+        btn.addEventListener('click', async () => {
+            const provider = providerSel.value;
+            const key = apiKeyIn.value.trim();
+            const prompt = document.getElementById('prompt').value.trim();
+
+            if (!key) return alert('Please enter an API Key');
+
+            btn.disabled = true;
+            resultBox.textContent = '⏱️ Calling ' + provider + '...';
+            resultBox.className = '';
+
+            try {
+                let response;
+                if (provider === 'anthropic') {
+                    response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': key,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-3-5-sonnet-latest',
+                            max_tokens: 1024,
+                            messages: [{ role: 'user', content: prompt }]
+                        })
+                    });
+                } else if (provider === 'gemini') {
+                    // Gemini PRO
+                    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${key}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                } else if (provider === 'openai') {
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + key
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: prompt }]
+                        })
+                    });
+                }
+
+                const data = await response.json();
+                if (!response.ok) {
+                    const msg = (data.error?.message || data.error || 'HTTP ' + response.status);
+                    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+                }
+
+                resultBox.classList.add('success');
+                resultBox.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                resultBox.classList.add('error');
+                resultBox.textContent = '❌ ERROR: ' + err.message + '\n\nCheck Console (F12) for network details.';
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>
