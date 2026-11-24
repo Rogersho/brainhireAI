@@ -1,0 +1,49 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import {
+  getApplicants,
+  getApplicantById,
+  createApplicant,
+  updateApplicant,
+  deleteApplicant,
+} from '../controllers/applicants.controller.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+import { validateBody } from '../middleware/validate.js';
+
+const router = Router();
+
+const createApplicantSchema = z.object({
+  jobId: z.string().uuid('Valid jobId is required'),
+  name: z.string().min(1).max(150).optional(),
+  role: z.string().min(1).max(200).optional(),
+  experience: z.string().min(1, 'Resume/experience content is required').max(20000),
+  source: z.string().max(100).optional(),
+  skills: z.array(z.string().max(80)).optional(),
+  resumeUrl: z.string().url().optional().or(z.literal('')),
+});
+
+const updateApplicantSchema = z.object({
+  status: z.enum(['Shortlisted', 'In Review', 'Pending', 'Rejected', 'Hired']).optional(),
+  score: z.number().min(0).max(100).optional(),
+  skills: z.array(z.string().max(80)).optional(),
+  experience: z.string().max(20000).optional(),
+  resumeUrl: z.string().nullable().optional(),
+  source: z.string().max(100).optional(),
+  name: z.string().min(1).max(150).optional(),
+  role: z.string().min(1).max(200).optional(),
+});
+
+// Every applicant endpoint requires authentication + role/ownership authorization
+router.get('/', authenticate, getApplicants);
+router.post('/', authenticate, validateBody(createApplicantSchema), createApplicant);
+router.get('/:id', authenticate, getApplicantById);
+router.put(
+  '/:id',
+  authenticate,
+  requireRole('Recruiter'),
+  validateBody(updateApplicantSchema),
+  updateApplicant
+);
+router.delete('/:id', authenticate, deleteApplicant);
+
+export default router;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import Link from "next/link";
 
 export default function ProfilePage() {
-   const { data: session } = useSession();
+   const { user } = useAuth();
    const [profile, setProfile] = useState<any>(null);
    const [recommendations, setRecommendations] = useState<any[]>([]);
    const [loading, setLoading] = useState(true);
@@ -23,9 +24,7 @@ export default function ProfilePage() {
 
    const fetchProfile = async () => {
       try {
-         const res = await fetch('/api/user/profile');
-         if (!res.ok) throw new Error('Failed to fetch profile');
-         const { data } = await res.json();
+         const { data } = await apiFetch<{ data: any }>('/user/profile');
          setProfile(data);
       } catch (e) {
          console.error(e);
@@ -38,9 +37,7 @@ export default function ProfilePage() {
       if (!profile?.resumeText) return;
       setRecommendationsLoading(true);
       try {
-         const res = await fetch('/api/ai/recommendations');
-         if (!res.ok) throw new Error('Failed to fetch recommendations');
-         const { recommendations } = await res.json();
+         const { recommendations } = await apiFetch<{ recommendations: any[] }>('/ai/recommendations');
          setRecommendations(recommendations || []);
       } catch (e) {
          console.error('Error fetching recommendations:', e);
@@ -51,8 +48,8 @@ export default function ProfilePage() {
    };
 
    useEffect(() => {
-      if (session) fetchProfile();
-   }, [session]);
+      if (user) fetchProfile();
+   }, [user]);
 
    // Disabled auto-fetch recommendations to save Gemini API quota
    // useEffect(() => {
@@ -68,11 +65,7 @@ export default function ProfilePage() {
       try {
          const formData = new FormData();
          formData.append('file', file);
-         const res = await fetch('/api/user/profile', { method: 'POST', body: formData });
-         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Upload failed');
-         }
+         await apiFetch('/user/profile', { method: 'POST', body: formData });
          await fetchProfile();
          setDialogOpen(false); // Close dialog on success
          setFile(null);

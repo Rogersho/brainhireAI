@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, MapPin, Loader2, ArrowRight } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export function PublicJobs() {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -14,8 +15,7 @@ export function PublicJobs() {
   useEffect(() => {
     async function getJobs() {
       try {
-        const res = await fetch("/api/jobs");
-        const data = await res.json();
+        const data = await apiFetch<{ success: boolean; data: any[] }>("/jobs");
         if (data.success && data.data) {
           setJobs(data.data.slice(0, 6)); // show latest 6
         }

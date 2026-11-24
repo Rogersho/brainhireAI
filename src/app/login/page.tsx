@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Suspense } from "react";
 
 function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
 
@@ -28,22 +29,17 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
-
-    if (res?.error) {
-      setError(res.error);
-      setLoading(false);
-    } else {
+    try {
+      const user = await login(email, password);
       if (callbackUrl) {
         router.push(callbackUrl);
       } else {
-        router.push("/dashboard"); 
+        router.push(user.role === "Candidate" ? "/candidate-dashboard" : "/dashboard");
       }
       router.refresh();
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password");
+      setLoading(false);
     }
   };
 

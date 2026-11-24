@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 const iconMap: Record<string, React.ReactNode> = {
   Brain: <Brain className="h-5 w-5" />,
@@ -49,8 +50,7 @@ export default function NotificationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/notifications');
-      const data = await response.json();
+      const data = await apiFetch<{ success: boolean; data: Notification[] }>('/notifications');
       if (data.success) {
         setNotifications(data.data);
       } else {
@@ -185,9 +185,8 @@ export default function NotificationsPage() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
     try {
-      await fetch(`/api/notifications/${id}`, {
+      await apiFetch(`/notifications/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read: true })
       });
     } catch (err) {
@@ -205,9 +204,8 @@ export default function NotificationsPage() {
     try {
       // Parallel requests
       await Promise.all(unreadIds.map(id => 
-        fetch(`/api/notifications/${id}`, {
+        apiFetch(`/notifications/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ read: true })
         })
       ));

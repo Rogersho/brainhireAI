@@ -1,23 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { apiFetch } from '@/lib/api';
 
 export const fetchApplicants = createAsyncThunk('applicants/fetchApplicants', async () => {
-  const response = await fetch('/api/applicants');
-  const data = await response.json();
+  const data = await apiFetch<{ success: boolean; data: any[] }>('/applicants');
   return data.data;
 });
 
 export const fetchMyApplicants = createAsyncThunk('applicants/fetchMyApplicants', async () => {
-  const response = await fetch('/api/applicants?myApplicants=true');
-  if (!response.ok) throw new Error('Failed to fetch your applicants');
-  const data = await response.json();
+  const data = await apiFetch<{ success: boolean; data: any[] }>('/applicants');
   return data.data;
 });
 
 export const fetchApplicantsByJob = createAsyncThunk(
   'applicants/fetchApplicantsByJob',
   async (jobId: string) => {
-    const response = await fetch(`/api/applicants?jobId=${jobId}`);
-    const data = await response.json();
+    const data = await apiFetch<{ success: boolean; data: any[] }>(`/applicants?jobId=${jobId}`);
     return data.data;
   }
 );
@@ -25,50 +22,53 @@ export const fetchApplicantsByJob = createAsyncThunk(
 export const fetchApplicantById = createAsyncThunk(
   'applicants/fetchApplicantById',
   async (id: string) => {
-    const response = await fetch(`/api/applicants/${id}`);
-    if (!response.ok) throw new Error('Failed to fetch applicant');
-    const data = await response.json();
+    const data = await apiFetch<{ success: boolean; data: any }>(`/applicants/${id}`);
     return data.data;
   }
 );
 
 export const createApplicant = createAsyncThunk(
   'applicants/createApplicant',
-  async (applicantData: any) => {
-    const response = await fetch('/api/applicants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(applicantData),
-    });
-    if (!response.ok) throw new Error('Failed to create applicant');
-    const data = await response.json();
-    return data.data;
+  async (applicantData: any, { rejectWithValue }) => {
+    try {
+      const data = await apiFetch<{ success: boolean; data: any }>('/applicants', {
+        method: 'POST',
+        body: JSON.stringify(applicantData),
+      });
+      return data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to create applicant');
+    }
   }
 );
 
 export const updateApplicant = createAsyncThunk(
   'applicants/updateApplicant',
-  async ({ id, applicantData }: { id: string; applicantData: any }) => {
-    const response = await fetch(`/api/applicants/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(applicantData),
-    });
-    if (!response.ok) throw new Error('Failed to update applicant');
-    const data = await response.json();
-    return data.data;
+  async ({ id, applicantData }: { id: string; applicantData: any }, { rejectWithValue }) => {
+    try {
+      const data = await apiFetch<{ success: boolean; data: any }>(`/applicants/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(applicantData),
+      });
+      return data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update applicant');
+    }
   }
 );
 
 export const deleteApplicant = createAsyncThunk(
   'applicants/deleteApplicant',
-  async (id: string) => {
-    const response = await fetch(`/api/applicants/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Failed to delete applicant');
-    const data = await response.json();
-    return data.data;
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const data = await apiFetch<{ success: boolean; data: { id: string; message: string } }>(
+        `/applicants/${id}`,
+        { method: 'DELETE' }
+      );
+      return { ...data.data, id };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to delete applicant');
+    }
   }
 );
 
@@ -96,7 +96,6 @@ const applicantsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Fetch all applicants
       .addCase(fetchApplicants.pending, (state) => {
         state.status = 'loading';
       })
@@ -108,7 +107,6 @@ const applicantsSlice = createSlice({
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch applicants';
       })
-      // Fetch my applicants (recruiter's applicants)
       .addCase(fetchMyApplicants.pending, (state) => {
         state.status = 'loading';
       })
@@ -120,7 +118,6 @@ const applicantsSlice = createSlice({
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch your applicants';
       })
-      // Fetch applicants by job
       .addCase(fetchApplicantsByJob.pending, (state) => {
         state.status = 'loading';
       })
@@ -132,7 +129,6 @@ const applicantsSlice = createSlice({
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch applicants';
       })
-      // Fetch applicant by ID
       .addCase(fetchApplicantById.pending, (state) => {
         state.status = 'loading';
       })
@@ -144,7 +140,6 @@ const applicantsSlice = createSlice({
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch applicant';
       })
-      // Create applicant
       .addCase(createApplicant.pending, (state) => {
         state.status = 'loading';
       })
@@ -154,9 +149,8 @@ const applicantsSlice = createSlice({
       })
       .addCase(createApplicant.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Failed to create applicant';
+        state.error = (action.payload as string) || action.error.message || 'Failed to create applicant';
       })
-      // Update applicant
       .addCase(updateApplicant.pending, (state) => {
         state.status = 'loading';
       })
@@ -170,19 +164,19 @@ const applicantsSlice = createSlice({
       })
       .addCase(updateApplicant.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Failed to update applicant';
+        state.error = (action.payload as string) || action.error.message || 'Failed to update applicant';
       })
-      // Delete applicant
       .addCase(deleteApplicant.pending, (state) => {
         state.status = 'loading';
       })
       .addCase(deleteApplicant.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = state.items.filter((app: any) => app._id !== action.payload.applicant?._id);
+        const deletedId = action.payload?.id || action.meta.arg;
+        state.items = state.items.filter((app: any) => app._id !== deletedId && app.id !== deletedId);
       })
       .addCase(deleteApplicant.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Failed to delete applicant';
+        state.error = (action.payload as string) || action.error.message || 'Failed to delete applicant';
       });
   },
 });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,20 +14,28 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchApplicantsByJob } from "@/store/slices/applicantsSlice";
+import { fetchJobById } from "@/store/slices/jobsSlice";
 import { toast } from "sonner";
 import { Navbar } from "@/components/landing/Navbar";
 
 export default function JobDetailPage() {
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { data: session, status: sessionStatus } = useSession();
+  const { user, status: sessionStatus } = useAuth();
   
   const isGuest = sessionStatus === "unauthenticated";
-  const isRecruiter = (session?.user as any)?.role === "Recruiter";
-  const isCandidate = (session?.user as any)?.role === "Candidate" || isGuest;
+  const isRecruiter = user?.role === "Recruiter";
+  const isCandidate = user?.role === "Candidate" || isGuest;
   
   const jobs = useAppSelector(state => state.jobs.items);
-  const job: any = jobs.find((j: any) => j._id === id);
+  const currentJob = useAppSelector(state => state.jobs.currentJob);
+  const job: any = jobs.find((j: any) => j._id === id || j.id === id) || (currentJob && (currentJob._id === id || currentJob.id === id) ? currentJob : null);
+
+  useEffect(() => {
+    if (id && !job) {
+      dispatch(fetchJobById(id as string));
+    }
+  }, [id, job, dispatch]);
 
   const { items: applicants, status: appStatus } = useAppSelector(state => state.applicants);
 
@@ -44,21 +53,20 @@ export default function JobDetailPage() {
   }, [id, dispatch, isCandidate]);
 
   useEffect(() => {
-    if (session?.user && isCandidate && id) {
+    if (user && isCandidate && id) {
       const checkAppliedStatus = async () => {
         try {
-          const res = await fetch(`/api/applicants?jobId=${id}&userId=${(session.user as any).id}`);
-          const { data } = await res.json();
-          if (data && data.length > 0) {
+          const res = await apiFetch<{ data: any[] }>(`/applicants?jobId=${id}`);
+          if (res.data && res.data.length > 0) {
             setApplied(true);
           }
-        } catch(e) {
+        } catch (e) {
           console.error("Failed to check application status:", e);
         }
       };
       checkAppliedStatus();
     }
-  }, [session, isCandidate, id]);
+  }, [user, isCandidate, id]);
 
   const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
     if (isGuest) {
@@ -79,11 +87,15 @@ export default function JobDetailPage() {
 
   const handleSaveJob = async () => {
     setSaved(!saved);
-    await fetch('/api/user/saved-jobs', {
-       method: 'POST', 
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ jobId: id })
-    });
+    try {
+      await apiFetch('/user/saved-jobs', {
+        method: 'POST',
+        body: JSON.stringify({ jobId: id }),
+      });
+    } catch (e: any) {
+      setSaved(saved);
+      toast.error(e.message || 'Failed to update saved job');
+    }
   };
 
   const handleApply = async () => {
@@ -94,34 +106,24 @@ export default function JobDetailPage() {
       const formData = new FormData();
       formData.append("file", file);
       
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-      const uploadData = await uploadRes.json();
-      
-      if (!uploadRes.ok) {
-        throw new Error(uploadData.error || "Failed to process resume. Please try again or check your AI API keys.");
-      }
+      const uploadData = await apiFetch<{ success: boolean; data?: { parsedText?: string } }>("/upload", {
+        method: "POST",
+        body: formData,
+      });
       
       const parsedText = uploadData.data?.parsedText;
       
-      const applicantRes = await fetch("/api/applicants", {
+      await apiFetch("/applicants", {
         method: "POST",
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: session?.user?.name || "Candidate User",
-          jobId: job._id,
-          userId: (session?.user as any)?.id,
+          name: user?.name || "Candidate User",
+          jobId: job._id || job.id,
           role: job.title,
           experience: parsedText?.substring(0, 10000) || "Incomplete Resume Data", 
           source: "Job Board",
           skills: []
         })
       });
-
-      const applicantData = await applicantRes.json();
-
-      if (!applicantRes.ok) {
-        throw new Error(applicantData.error || "Failed to submit application. Please try again.");
-      }
 
       toast.success("Application submitted successfully!");
       setApplied(true);
@@ -336,22 +338,19 @@ export default function JobDetailPage() {
   async function handleRunScreening() {
     setScreening(true);
     try {
-      const response = await fetch('/api/screening/run', {
+      const data = await apiFetch<{ success: boolean; data: any[]; error?: string }>('/screening/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: id }),
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         dispatch(fetchApplicantsByJob(id as string));
         toast.success(`AI Screening complete! ${data.data.length} candidates analyzed.`);
       } else {
         toast.error(data.error || "Screening failed");
-        console.error('Screening failed:', data.error);
       }
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.message || "Screening failed");
       console.error('Screening error:', error);
     } finally {
       setScreening(false);

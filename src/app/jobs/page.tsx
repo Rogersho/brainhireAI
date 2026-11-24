@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,16 +22,11 @@ import { Navbar } from "@/components/landing/Navbar";
 import { JobDialog } from "@/components/JobDialog";
 
 export default function JobsPage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { user, status: sessionStatus } = useAuth();
   
   const isGuest = sessionStatus === "unauthenticated";
-  const isRecruiter = (session?.user as any)?.role === "Recruiter";
-  const isCandidate = (session?.user as any)?.role === "Candidate" || isGuest;
-
-  useEffect(() => {
-    console.log('JobsPage - Session:', session);
-    console.log('JobsPage - User role:', (session?.user as any)?.role);
-  }, [session]);
+  const isRecruiter = user?.role === "Recruiter";
+  const isCandidate = user?.role === "Candidate" || isGuest;
 
   const dispatch = useAppDispatch();
   const { items: jobs, status, error } = useAppSelector((state) => state.jobs);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth, UserRole } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,8 @@ import { Brain, Loader2, Building, User } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "Candidate" });
+  const { register } = useAuth();
+  const [formData, setFormData] = useState<{ name: string; email: string; password: string; role: UserRole }>({ name: "", email: "", password: "", role: "Candidate" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,21 +24,10 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to register");
-      }
-
-      router.push("/login?registered=true");
+      const user = await register(formData);
+      router.push(user.role === "Recruiter" ? "/dashboard" : "/candidate-dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to register");
       setLoading(false);
     }
   };
@@ -67,7 +58,7 @@ export default function SignupPage() {
               <Label>I want to...</Label>
               <RadioGroup 
                 defaultValue="Candidate" 
-                onValueChange={(val) => setFormData({...formData, role: val})}
+                onValueChange={(val) => setFormData({...formData, role: val as UserRole})}
                 className="grid grid-cols-2 gap-4"
               >
                 <div>

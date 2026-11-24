@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, Briefcase, Users, Brain, Settings, Bell, LogOut,
 } from "lucide-react";
@@ -24,6 +24,7 @@ const navItems = [
 
 function AppSidebar() {
   const { state } = useSidebar();
+  const { logout } = useAuth();
   const collapsed = state === "collapsed";
   const pathname = usePathname();
 
@@ -61,7 +62,7 @@ function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <button onClick={() => signOut({ callbackUrl: '/' })} className="text-muted-foreground hover:text-foreground inline-flex items-center w-full focus:outline-none">
+                <button onClick={() => logout('/')} className="text-muted-foreground hover:text-foreground inline-flex items-center w-full focus:outline-none">
                   <LogOut className="mr-2 h-4 w-4 shrink-0" />
                   {!collapsed && <span>Log out</span>}
                 </button>
@@ -75,8 +76,8 @@ function AppSidebar() {
 }
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
-  const { data: session } = useSession();
-  const initials = session?.user?.name ? session.user.name.substring(0, 2).toUpperCase() : "JD";
+  const { user } = useAuth();
+  const initials = user?.name ? user.name.substring(0, 2).toUpperCase() : "JD";
 
   return (
     <SidebarProvider>

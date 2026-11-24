@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +11,15 @@ import { Loader2, CheckCircle, Clock, XCircle, FileText, ExternalLink, Building,
 import Link from "next/link";
 
 export default function MyApplicationsPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       const fetchApps = async () => {
          try {
-           const res = await fetch(`/api/applicants?userId=${(session.user as any).id}`);
-           const { data } = await res.json();
+           const { data } = await apiFetch<{ data: any[] }>(`/applicants`);
            setApplications(data || []);
          } catch (err) {
            console.error(err);
@@ -29,7 +29,7 @@ export default function MyApplicationsPage() {
       };
       fetchApps();
     }
-  }, [session]);
+  }, [user]);
 
   return (
     <CandidateLayout>

@@ -13,6 +13,7 @@ import { fetchJobs } from "@/store/slices/jobsSlice";
 import { fetchApplicantsByJob } from "@/store/slices/applicantsSlice";
 import { toast } from "sonner";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 
 export default function ScreeningPage() {
   const dispatch = useAppDispatch();
@@ -48,13 +49,10 @@ export default function ScreeningPage() {
     
     setRunning(true);
     try {
-      const response = await fetch('/api/screening/run', {
+      const data = await apiFetch<{ success: boolean; data: any[]; error?: string }>('/screening/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: selectedJobId }),
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         // Refresh applicants
@@ -65,7 +63,8 @@ export default function ScreeningPage() {
         toast.error(data.error || "Screening failed");
         console.error('Screening failed:', data.error);
       }
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.message || "Screening failed");
       console.error('Screening error:', error);
     } finally {
       setRunning(false);

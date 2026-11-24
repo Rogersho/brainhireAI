@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Eye, UploadCloud, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchApplicants, fetchMyApplicants, updateApplicant } from "@/store/slices/applicantsSlice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,8 +18,8 @@ import { toast } from "sonner";
 import { unwrapResult } from "@reduxjs/toolkit";
 
 export default function ApplicantsPage() {
-  const { data: session } = useSession();
-  const isRecruiter = (session?.user as any)?.role === "Recruiter";
+  const { user } = useAuth();
+  const isRecruiter = user?.role === "Recruiter";
 
   const dispatch = useAppDispatch();
   const { items: applicantsRaw, status } = useAppSelector((state) => state.applicants);
@@ -54,10 +55,13 @@ export default function ApplicantsPage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const { data } = await res.json();
+      const { data } = await apiFetch<{ data: { parsedText: string } }>("/upload", {
+        method: "POST",
+        body: formData,
+      });
       setParsedText(data.parsedText);
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.message || "Failed to parse document");
       console.error(error);
     } finally {
       setUploading(false);

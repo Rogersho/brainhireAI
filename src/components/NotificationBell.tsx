@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 const iconMap: Record<string, any> = {
   Brain: Brain,
@@ -39,20 +40,13 @@ export function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications');
-      
-      if (!response.ok) return;
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) return;
-
-      const data = await response.json();
+      const data = await apiFetch<{ success: boolean; data: Notification[]; unreadCount: number }>('/notifications');
       if (data.success) {
         setNotifications(data.data.slice(0, 5));
         setUnreadCount(data.unreadCount || 0);
       }
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
+    } catch {
+      // Unauthenticated or transient error
     }
   };
 
@@ -70,9 +64,8 @@ export function NotificationBell() {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`/api/notifications/${id}`, {
+      await apiFetch(`/notifications/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read: true })
       });
       fetchNotifications();

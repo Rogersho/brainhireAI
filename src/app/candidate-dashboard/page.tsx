@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,8 @@ import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function CandidateDashboard() {
-  const { data: session } = useSession();
-  const userId = (session?.user as any)?.id;
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const [applications, setApplications] = useState<any[]>([]);
   const [allJobs, setAllJobs] = useState<any[]>([]);
@@ -22,12 +23,10 @@ export default function CandidateDashboard() {
     if (userId) {
       const fetchData = async () => {
         try {
-          const [appRes, jobRes] = await Promise.all([
-            fetch(`/api/applicants?userId=${userId}`),
-            fetch(`/api/jobs`)
+          const [appData, jobData] = await Promise.all([
+            apiFetch<{ data: any[] }>(`/applicants`),
+            apiFetch<{ data: any[] }>(`/jobs`)
           ]);
-          const appData = await appRes.json();
-          const jobData = await jobRes.json();
           
           setApplications(appData.data || []);
           setAllJobs(jobData.data || []);
@@ -83,7 +82,7 @@ export default function CandidateDashboard() {
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-foreground">Welcome back, {session?.user?.name || "Candidate"} 👋</h1>
+            <h1 className="text-3xl font-bold font-heading text-foreground">Welcome back, {user?.name || "Candidate"} 👋</h1>
             <p className="text-muted-foreground mt-2">Here is your real-time job search activity.</p>
           </div>
           <div className="flex gap-3">
