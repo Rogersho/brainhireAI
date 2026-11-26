@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { extractTextFromPdf } from '../services/gemini.service.js';
+import { extractTextFromPdf } from '../services/ai.service.js';
 import {
   buildResumeKey,
   isStorageConfigured,

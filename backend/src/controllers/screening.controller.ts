@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
-import { screenCandidate } from '../services/gemini.service.js';
+import { screenCandidate } from '../services/ai.service.js';
 
 export async function runScreening(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

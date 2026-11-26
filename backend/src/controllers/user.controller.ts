@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
-import { analyzeResumeText, extractTextFromPdf } from '../services/gemini.service.js';
+import { analyzeResumeText, extractTextFromPdf } from '../services/ai.service.js';
 import {
   buildResumeKey,
   deleteFileFromS3,

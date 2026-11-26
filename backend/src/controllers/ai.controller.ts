@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
-import { generateJobRecommendations } from '../services/gemini.service.js';
+import { generateJobRecommendations } from '../services/ai.service.js';
 
 export async function getRecommendations(
   req: Request,

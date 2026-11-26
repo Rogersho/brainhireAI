@@ -18,11 +18,12 @@ export const env = {
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/brainhire_db',
   jwtSecret: jwtSecret || 'dev-only-insecure-secret-change-me-32chars',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  geminiApiKeys: (process.env.GEMINI_API_KEY || '')
+  nvidiaApiKeys: (process.env.NVIDIA_API_KEYS || process.env.NVIDIA_API_KEY || '')
     .split(',')
     .map((k) => k.trim())
     .filter(Boolean),
-  geminiModel: process.env.GEMINI_MODEL || process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash',
+  nvidiaApiBaseUrl: (process.env.NVIDIA_API_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/+$/, ''),
+  nvidiaModel: process.env.NVIDIA_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b',
   s3: {
     endpoint: process.env.AWS_ENDPOINT_URL_S3 || '',
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
