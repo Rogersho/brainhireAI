@@ -16,6 +16,13 @@ import interviewsRoutes from './interviews.routes.js';
 import offersRoutes from './offers.routes.js';
 import attendanceRoutes from './attendance.routes.js';
 import leaveRoutes from './leave.routes.js';
+import payrollRoutes from './payroll.routes.js';
+import expensesRoutes from './expenses.routes.js';
+import assetsRoutes from './assets.routes.js';
+import performanceRoutes from './performance.routes.js';
+import communicationsRoutes from './communications.routes.js';
+import helpdeskRoutes from './helpdesk.routes.js';
+import analyticsRoutes from './analytics.routes.js';
 
 const router = Router();
 
@@ -48,5 +55,16 @@ router.use('/offers', offersRoutes);
 // Phase 4: Daily HR Operations — Attendance & Leave / PTO
 router.use('/attendance', attendanceRoutes);
 router.use('/leave', leaveRoutes);
+
+// Phase 5: Payroll, Compensation, Expenses & Company Assets
+router.use('/payroll', payrollRoutes);
+router.use('/expenses', expensesRoutes);
+router.use('/assets', assetsRoutes);
+
+// Phase 6: Performance, Policies, Announcements, Helpdesk & Executive Analytics
+router.use('/performance', performanceRoutes);
+router.use('/communications', communicationsRoutes);
+router.use('/helpdesk', helpdeskRoutes);
+router.use('/analytics', analyticsRoutes);
 
 export default router;

@@ -19,6 +19,13 @@ import {
   FileSignature,
   Clock,
   CalendarDays,
+  Wallet,
+  Receipt,
+  Laptop,
+  Target,
+  BookOpen,
+  LifeBuoy,
+  BarChart3,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -54,28 +61,23 @@ function AppSidebar() {
   const hiringAccess = isHiringRole(user?.role);
 
   const sections: NavSection[] = [
-    ...(hiringAccess
-      ? [
-          {
-            label: "Overview",
-            items: [
-              { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, exact: true },
-              { title: "Notifications", url: "/notifications", icon: Bell },
-            ],
-          },
-        ]
-      : [
-          {
-            label: "Overview",
-            items: [{ title: "Notifications", url: "/notifications", icon: Bell }],
-          },
-        ]),
+    {
+      label: "Overview",
+      items: [
+        ...(hiringAccess
+          ? [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, exact: true }]
+          : []),
+        ...(hrAccess ? [{ title: "HR Analytics", url: "/analytics", icon: BarChart3 }] : []),
+        { title: "Notifications", url: "/notifications", icon: Bell },
+      ],
+    },
     {
       label: "People",
       items: [
         { title: "Employees", url: "/employees", icon: UserCheck },
         { title: "Org Chart", url: "/org-chart", icon: Network },
         ...(hrAccess ? [{ title: "Onboarding", url: "/onboarding", icon: ClipboardCheck }] : []),
+        { title: "Performance", url: "/performance", icon: Target },
       ],
     },
     {
@@ -83,6 +85,9 @@ function AppSidebar() {
       items: [
         { title: "Attendance", url: "/attendance", icon: Clock },
         { title: "Leave & PTO", url: "/leave", icon: CalendarDays },
+        { title: "Payroll", url: "/payroll", icon: Wallet },
+        { title: "Expenses", url: "/expenses", icon: Receipt },
+        { title: "Assets", url: "/assets", icon: Laptop },
       ],
     },
     ...(hiringAccess
@@ -108,6 +113,8 @@ function AppSidebar() {
       label: "Company",
       items: [
         ...(hrAccess ? [{ title: "Organization", url: "/organization", icon: Building2 }] : []),
+        { title: "Policies & News", url: "/policies", icon: BookOpen },
+        { title: "HR Helpdesk", url: "/helpdesk", icon: LifeBuoy },
         { title: "Settings", url: "/settings", icon: Settings },
       ],
     },

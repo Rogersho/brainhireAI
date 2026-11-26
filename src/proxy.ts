@@ -44,6 +44,13 @@ export async function proxy(req: NextRequest) {
     "/organization",
     "/attendance",
     "/leave",
+    "/payroll",
+    "/expenses",
+    "/assets",
+    "/performance",
+    "/policies",
+    "/helpdesk",
+    "/analytics",
     "/notifications",
     "/settings",
   ];
@@ -78,7 +85,8 @@ export async function proxy(req: NextRequest) {
   if (
     (path.startsWith("/organization") ||
       path.startsWith("/onboarding") ||
-      path.startsWith("/offers")) &&
+      path.startsWith("/offers") ||
+      path.startsWith("/analytics")) &&
     !HR_ROLES.has(role)
   ) {
     return NextResponse.redirect(
@@ -90,7 +98,13 @@ export async function proxy(req: NextRequest) {
     (path.startsWith("/employees") ||
       path.startsWith("/org-chart") ||
       path.startsWith("/attendance") ||
-      path.startsWith("/leave")) &&
+      path.startsWith("/leave") ||
+      path.startsWith("/payroll") ||
+      path.startsWith("/expenses") ||
+      path.startsWith("/assets") ||
+      path.startsWith("/performance") ||
+      path.startsWith("/policies") ||
+      path.startsWith("/helpdesk")) &&
     !INTERNAL_ROLES.has(role)
   ) {
     return NextResponse.redirect(new URL("/candidate-dashboard", req.url));
@@ -113,6 +127,13 @@ export const config = {
     "/organization/:path*",
     "/attendance/:path*",
     "/leave/:path*",
+    "/payroll/:path*",
+    "/expenses/:path*",
+    "/assets/:path*",
+    "/performance/:path*",
+    "/policies/:path*",
+    "/helpdesk/:path*",
+    "/analytics/:path*",
     "/notifications/:path*",
     "/settings/:path*",
   ],

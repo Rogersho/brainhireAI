@@ -352,3 +352,39 @@ Keep it concise, professional, and ready to send.`;
     { role: 'user', content: prompt },
   ]);
 }
+
+export async function summarizePerformanceReview(input: {
+  employeeName: string;
+  jobTitle: string;
+  selfRating?: number | null;
+  selfComments?: string;
+  managerRating?: number | null;
+  managerComments?: string;
+  goalsSummary?: string;
+}): Promise<string> {
+  const prompt = `Write a concise, balanced, constructive 3-4 sentence performance review synthesis for ${input.employeeName} (${input.jobTitle}).
+Self Rating: ${input.selfRating ?? 'N/A'}/5
+Self Reflection: ${input.selfComments || 'None provided'}
+Manager Rating: ${input.managerRating ?? 'N/A'}/5
+Manager Feedback: ${input.managerComments || 'None provided'}
+Goals Progress: ${input.goalsSummary || 'None linked'}
+
+Highlight key achievements, alignment between self and manager feedback, and one concrete growth focus for the next cycle. Plain text only.`;
+
+  return callNvidiaChat([
+    { role: 'system', content: 'You are an objective People Operations partner writing clear, fair performance review summaries.' },
+    { role: 'user', content: prompt },
+  ]);
+}
+
+export async function generateHrExecutiveBrief(metrics: Record<string, unknown>): Promise<string> {
+  const prompt = `Generate a crisp, executive-ready monthly HR brief (under 200 words, plain text with clean bullet points) based strictly on these live company metrics:
+${JSON.stringify(metrics, null, 2)}
+
+Cover workforce health, recruiting momentum, attendance/leave trends, payroll/expense highlights, and 2 actionable HR recommendations.`;
+
+  return callNvidiaChat([
+    { role: 'system', content: 'You are a Chief People Officer writing a concise executive HR briefing based strictly on real data.' },
+    { role: 'user', content: prompt },
+  ]);
+}

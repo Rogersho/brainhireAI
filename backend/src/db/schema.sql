@@ -540,6 +540,209 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 );
 
 -- ============================================================================
+-- PHASE 5: PAYROLL, COMPENSATION, EXPENSES & COMPANY ASSETS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS compensation_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  base_salary NUMERIC(12, 2) NOT NULL,
+  currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  pay_frequency VARCHAR(20) NOT NULL DEFAULT 'Monthly' CHECK (pay_frequency IN ('Monthly', 'Bi-Weekly')),
+  allowances JSONB NOT NULL DEFAULT '[]'::jsonb,
+  deductions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  bank_name VARCHAR(120) NOT NULL DEFAULT '',
+  bank_account_last4 VARCHAR(10) NOT NULL DEFAULT '',
+  payment_method VARCHAR(30) NOT NULL DEFAULT 'Bank Transfer' CHECK (payment_method IN ('Bank Transfer', 'Direct Deposit', 'Check')),
+  effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
+  effective_to DATE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS payroll_runs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  period_year INTEGER NOT NULL,
+  period_month INTEGER NOT NULL CHECK (period_month BETWEEN 1 AND 12),
+  label VARCHAR(60) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Approved', 'Paid')),
+  total_gross NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  total_deductions NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  total_net NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  employee_count INTEGER NOT NULL DEFAULT 0,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (period_year, period_month)
+);
+
+CREATE TABLE IF NOT EXISTS payslips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payroll_run_id UUID NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  base_salary NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  allowances_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  overtime_pay NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  bonus_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  expense_reimbursement NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  gross_pay NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  unpaid_leave_deduction NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  tax_deduction NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  other_deductions_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  net_pay NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  breakdown JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status VARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Issued', 'Paid')),
+  issued_at TIMESTAMPTZ,
+  UNIQUE (payroll_run_id, employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS expense_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  category VARCHAR(40) NOT NULL DEFAULT 'Other' CHECK (category IN ('Travel', 'Meals', 'Software', 'Equipment', 'Training', 'Other')),
+  amount NUMERIC(12, 2) NOT NULL,
+  currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  description TEXT NOT NULL DEFAULT '',
+  receipt_s3_key TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Reimbursed')),
+  reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  review_note TEXT NOT NULL DEFAULT '',
+  payroll_run_id UUID REFERENCES payroll_runs(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS company_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  asset_tag VARCHAR(40) NOT NULL UNIQUE,
+  name VARCHAR(200) NOT NULL,
+  category VARCHAR(40) NOT NULL DEFAULT 'Laptop' CHECK (category IN ('Laptop', 'Monitor', 'Phone', 'Access Card', 'Furniture', 'Software License', 'Other')),
+  serial_number VARCHAR(120) NOT NULL DEFAULT '',
+  purchase_date DATE,
+  purchase_cost NUMERIC(12, 2),
+  status VARCHAR(20) NOT NULL DEFAULT 'Available' CHECK (status IN ('Available', 'Assigned', 'In Repair', 'Retired')),
+  assigned_employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  assigned_at TIMESTAMPTZ,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS asset_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  asset_id UUID NOT NULL REFERENCES company_assets(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  action VARCHAR(30) NOT NULL CHECK (action IN ('Assigned', 'Returned', 'Repaired', 'Retired')),
+  performed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
+-- PHASE 6: PERFORMANCE, POLICIES, ANNOUNCEMENTS, HR HELPDESK & ANALYTICS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS review_cycles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(150) NOT NULL UNIQUE,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Draft', 'Active', 'Closed')),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS performance_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cycle_id UUID NOT NULL REFERENCES review_cycles(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  reviewer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  self_rating INTEGER CHECK (self_rating BETWEEN 1 AND 5),
+  self_comments TEXT NOT NULL DEFAULT '',
+  manager_rating INTEGER CHECK (manager_rating BETWEEN 1 AND 5),
+  manager_comments TEXT NOT NULL DEFAULT '',
+  final_rating INTEGER CHECK (final_rating BETWEEN 1 AND 5),
+  ai_summary TEXT NOT NULL DEFAULT '',
+  status VARCHAR(30) NOT NULL DEFAULT 'Pending Self' CHECK (status IN ('Pending Self', 'Pending Manager', 'Completed')),
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (cycle_id, employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS employee_goals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  cycle_id UUID REFERENCES review_cycles(id) ON DELETE SET NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  metric_target VARCHAR(200) NOT NULL DEFAULT '',
+  progress_percent INTEGER NOT NULL DEFAULT 0 CHECK (progress_percent BETWEEN 0 AND 100),
+  due_date DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'On Track' CHECK (status IN ('On Track', 'At Risk', 'Completed', 'Dropped')),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  body TEXT NOT NULL,
+  category VARCHAR(30) NOT NULL DEFAULT 'General' CHECK (category IN ('General', 'HR Update', 'Event', 'Urgent')),
+  is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS company_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  version VARCHAR(30) NOT NULL DEFAULT '1.0',
+  category VARCHAR(40) NOT NULL DEFAULT 'Handbook' CHECK (category IN ('Handbook', 'Code of Conduct', 'Remote Work', 'Security', 'Leave Policy', 'Benefits')),
+  content_markdown TEXT NOT NULL,
+  requires_acknowledgement BOOLEAN NOT NULL DEFAULT TRUE,
+  published_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS policy_acknowledgements (
+  policy_id UUID NOT NULL REFERENCES company_policies(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  acknowledged_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (policy_id, employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS hr_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_number VARCHAR(30) NOT NULL UNIQUE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  category VARCHAR(40) NOT NULL DEFAULT 'Other' CHECK (category IN ('Payroll', 'Leave', 'Benefits', 'IT / Access', 'Workplace', 'Document Request', 'Other')),
+  priority VARCHAR(20) NOT NULL DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')),
+  subject VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'Open' CHECK (status IN ('Open', 'In Progress', 'Waiting on Employee', 'Resolved', 'Closed')),
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_ticket_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES hr_tickets(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  body TEXT NOT NULL,
+  is_internal_note BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
 -- NOTIFICATIONS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS notifications (
@@ -578,6 +781,13 @@ CREATE INDEX IF NOT EXISTS idx_applicant_notes_app ON applicant_notes(applicant_
 CREATE INDEX IF NOT EXISTS idx_attendance_emp_date ON attendance_logs(employee_id, work_date DESC);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_emp ON leave_requests(employee_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_compensation_emp ON compensation_profiles(employee_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_payslips_emp ON payslips(employee_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_emp ON expense_claims(employee_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assets_emp ON company_assets(assigned_employee_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_cycle ON performance_reviews(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_goals_emp ON employee_goals(employee_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_emp ON hr_tickets(employee_id, created_at DESC);
 
 -- ============================================================================
 -- UPDATED_AT TRIGGERS
@@ -611,6 +821,14 @@ BEGIN
     'attendance_logs',
     'leave_types',
     'leave_requests',
+    'payroll_runs',
+    'expense_claims',
+    'company_assets',
+    'review_cycles',
+    'performance_reviews',
+    'employee_goals',
+    'company_policies',
+    'hr_tickets',
     'notifications'
   ]
   LOOP
