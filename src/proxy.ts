@@ -36,10 +36,14 @@ export async function proxy(req: NextRequest) {
     "/candidate-dashboard",
     "/applicants",
     "/screening",
+    "/interviews",
+    "/offers",
     "/employees",
     "/org-chart",
     "/onboarding",
     "/organization",
+    "/attendance",
+    "/leave",
     "/notifications",
     "/settings",
   ];
@@ -53,38 +57,40 @@ export async function proxy(req: NextRequest) {
 
   const role = session?.role || "";
 
-  // Candidate-only portal
   if (path.startsWith("/candidate-dashboard") && role !== "Candidate") {
     return NextResponse.redirect(
-      new URL(role === "Employee" ? "/employees" : "/dashboard", req.url)
+      new URL(role === "Employee" ? "/attendance" : "/dashboard", req.url)
     );
   }
 
-  // Hiring & HR dashboard routes
   if (
     (path.startsWith("/dashboard") ||
       path.startsWith("/applicants") ||
-      path.startsWith("/screening")) &&
+      path.startsWith("/screening") ||
+      path.startsWith("/interviews")) &&
     !HIRING_ROLES.has(role)
   ) {
     return NextResponse.redirect(
-      new URL(role === "Employee" ? "/employees" : "/candidate-dashboard", req.url)
+      new URL(role === "Employee" ? "/attendance" : "/candidate-dashboard", req.url)
     );
   }
 
-  // HR-only admin & setup routes
   if (
-    (path.startsWith("/organization") || path.startsWith("/onboarding")) &&
+    (path.startsWith("/organization") ||
+      path.startsWith("/onboarding") ||
+      path.startsWith("/offers")) &&
     !HR_ROLES.has(role)
   ) {
     return NextResponse.redirect(
-      new URL(INTERNAL_ROLES.has(role) ? "/employees" : "/candidate-dashboard", req.url)
+      new URL(INTERNAL_ROLES.has(role) ? "/attendance" : "/candidate-dashboard", req.url)
     );
   }
 
-  // Internal staff routes (Employees directory & Org Chart)
   if (
-    (path.startsWith("/employees") || path.startsWith("/org-chart")) &&
+    (path.startsWith("/employees") ||
+      path.startsWith("/org-chart") ||
+      path.startsWith("/attendance") ||
+      path.startsWith("/leave")) &&
     !INTERNAL_ROLES.has(role)
   ) {
     return NextResponse.redirect(new URL("/candidate-dashboard", req.url));
@@ -99,10 +105,14 @@ export const config = {
     "/candidate-dashboard/:path*",
     "/applicants/:path*",
     "/screening/:path*",
+    "/interviews/:path*",
+    "/offers/:path*",
     "/employees/:path*",
     "/org-chart/:path*",
     "/onboarding/:path*",
     "/organization/:path*",
+    "/attendance/:path*",
+    "/leave/:path*",
     "/notifications/:path*",
     "/settings/:path*",
   ],

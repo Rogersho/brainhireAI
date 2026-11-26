@@ -153,9 +153,12 @@ export default function ApplicantsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Shortlisted">Shortlisted</SelectItem>
-              <SelectItem value="In Review">In Review</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="In Review">In Review</SelectItem>
+              <SelectItem value="Shortlisted">Shortlisted</SelectItem>
+              <SelectItem value="Interview">Interview</SelectItem>
+              <SelectItem value="Offer">Offer</SelectItem>
+              <SelectItem value="Hired">Hired</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
@@ -209,9 +212,12 @@ export default function ApplicantsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Shortlisted">Shortlisted</SelectItem>
-                          <SelectItem value="In Review">In Review</SelectItem>
                           <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="In Review">In Review</SelectItem>
+                          <SelectItem value="Shortlisted">Shortlisted</SelectItem>
+                          <SelectItem value="Interview">Interview</SelectItem>
+                          <SelectItem value="Offer">Offer</SelectItem>
+                          <SelectItem value="Hired">Hired</SelectItem>
                           <SelectItem value="Rejected">Rejected</SelectItem>
                         </SelectContent>
                       </Select>

@@ -15,6 +15,10 @@ import {
   Network,
   ClipboardCheck,
   Building2,
+  CalendarClock,
+  FileSignature,
+  Clock,
+  CalendarDays,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -74,6 +78,13 @@ function AppSidebar() {
         ...(hrAccess ? [{ title: "Onboarding", url: "/onboarding", icon: ClipboardCheck }] : []),
       ],
     },
+    {
+      label: "Operations",
+      items: [
+        { title: "Attendance", url: "/attendance", icon: Clock },
+        { title: "Leave & PTO", url: "/leave", icon: CalendarDays },
+      ],
+    },
     ...(hiringAccess
       ? [
           {
@@ -82,6 +93,8 @@ function AppSidebar() {
               { title: "Jobs", url: "/jobs", icon: Briefcase },
               { title: "Applicants", url: "/applicants", icon: Users },
               { title: "AI Screening", url: "/screening", icon: Brain },
+              { title: "Interviews", url: "/interviews", icon: CalendarClock },
+              ...(hrAccess ? [{ title: "Offers", url: "/offers", icon: FileSignature }] : []),
             ],
           },
         ]

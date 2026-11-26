@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
-import { generateJobRecommendations } from '../services/ai.service.js';
+import {
+  generateJobRecommendations,
+  generateJobDescription,
+  generateInterviewQuestions,
+  draftOfferLetter,
+} from '../services/ai.service.js';
 
 export async function getRecommendations(
   req: Request,
@@ -79,6 +84,73 @@ export async function getRecommendations(
       });
       return;
     }
+    next(err);
+  }
+}
+
+export async function aiGenerateJd(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { title, department, location, employmentType, skills } = req.body;
+    const result = await generateJobDescription({
+      title,
+      department,
+      location,
+      employmentType,
+      skills,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function aiInterviewQuestions(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { jobTitle, jobDescription, resumeText, roundType } = req.body;
+    const questions = await generateInterviewQuestions({
+      jobTitle,
+      jobDescription: jobDescription || '',
+      resumeText: resumeText || '',
+      roundType: roundType || 'Technical & Role Fit',
+    });
+    res.json({ success: true, data: questions });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function aiDraftOffer(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { candidateName, jobTitle, salary, currency, startDate, employmentType, benefits } =
+      req.body;
+    const compRes = await query<{ company_name: string }>(
+      'SELECT company_name FROM company_settings ORDER BY created_at ASC LIMIT 1'
+    );
+    const companyName = compRes.rows[0]?.company_name || 'Hoobe HR';
+    const letter = await draftOfferLetter({
+      companyName,
+      candidateName,
+      jobTitle,
+      salary: Number(salary),
+      currency: currency || 'USD',
+      startDate,
+      employmentType: employmentType || 'Full-Time',
+      benefits,
+    });
+    res.json({ success: true, data: { offerLetterText: letter } });
+  } catch (err) {
     next(err);
   }
 }

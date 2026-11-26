@@ -255,3 +255,100 @@ Sort by matchPercentage descending. If no good matches, return [].`;
   const parsed = parseJsonResponse<JobRecommendation[]>(raw);
   return Array.isArray(parsed) ? parsed : [];
 }
+
+export async function generateJobDescription(input: {
+  title: string;
+  department: string;
+  location?: string;
+  employmentType?: string;
+  skills?: string[];
+}): Promise<{ description: string; skills: string[] }> {
+  const prompt = `Draft a crisp, modern, inclusive job description for:
+Title: ${input.title}
+Department: ${input.department}
+Location: ${input.location || 'Flexible'}
+Employment Type: ${input.employmentType || 'Full-Time'}
+Hinted Skills: ${(input.skills || []).join(', ') || 'Determine best fit'}
+
+Return STRICT JSON ONLY:
+{
+  "description": "Clean formatted plain text with Overview, Key Responsibilities (bulleted with -), and Qualifications (bulleted with -).",
+  "skills": ["skill1", "skill2", "skill3", "skill4", "skill5", "skill6"]
+}`;
+
+  const raw = await callNvidiaChat([
+    {
+      role: 'system',
+      content: 'You are an expert HR copywriter. Always respond with strict valid JSON only.',
+    },
+    { role: 'user', content: prompt },
+  ]);
+
+  const data = parseJsonResponse<{ description?: string; skills?: string[] }>(raw);
+  return {
+    description: typeof data.description === 'string' ? data.description : '',
+    skills: Array.isArray(data.skills) ? data.skills.map(String) : input.skills || [],
+  };
+}
+
+export async function generateInterviewQuestions(input: {
+  jobTitle: string;
+  jobDescription: string;
+  resumeText: string;
+  roundType: string;
+}): Promise<Array<{ question: string; focusArea: string; whatToLookFor: string }>> {
+  const prompt = `Generate 6 tailored, high-signal interview questions for a "${input.roundType}" interview.
+Role: ${input.jobTitle}
+Job Description: ${input.jobDescription.slice(0, 1500)}
+Candidate Background: ${input.resumeText.slice(0, 2000)}
+
+Return STRICT JSON ARRAY ONLY:
+[
+  {
+    "question": "The exact interview question",
+    "focusArea": "Technical | Behavioral | System Design | Leadership | Role Fit",
+    "whatToLookFor": "Brief rubric of a strong answer"
+  }
+]`;
+
+  const raw = await callNvidiaChat([
+    {
+      role: 'system',
+      content: 'You are a structured interviewing expert. Always respond with a strict valid JSON array only.',
+    },
+    { role: 'user', content: prompt },
+  ]);
+
+  const parsed = parseJsonResponse<Array<{ question: string; focusArea: string; whatToLookFor: string }>>(raw);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+export async function draftOfferLetter(input: {
+  companyName: string;
+  candidateName: string;
+  jobTitle: string;
+  salary: number;
+  currency: string;
+  startDate: string;
+  employmentType: string;
+  benefits?: string;
+}): Promise<string> {
+  const prompt = `Write a clean, warm, legally clear job offer letter (plain text, no markdown fences).
+Company: ${input.companyName}
+Candidate: ${input.candidateName}
+Role: ${input.jobTitle}
+Employment Type: ${input.employmentType}
+Compensation: ${input.currency} ${input.salary.toLocaleString()} per year
+Start Date: ${input.startDate}
+Benefits Summary: ${input.benefits || 'Standard company benefits package including paid leave and health coverage.'}
+
+Keep it concise, professional, and ready to send.`;
+
+  return callNvidiaChat([
+    {
+      role: 'system',
+      content: 'You are an experienced HR director drafting clear, warm, concise employment offer letters.',
+    },
+    { role: 'user', content: prompt },
+  ]);
+}

@@ -12,6 +12,10 @@ import adminRoutes from './admin.routes.js';
 import employeesRoutes from './employees.routes.js';
 import checklistsRoutes from './checklists.routes.js';
 import documentsRoutes from './documents.routes.js';
+import interviewsRoutes from './interviews.routes.js';
+import offersRoutes from './offers.routes.js';
+import attendanceRoutes from './attendance.routes.js';
+import leaveRoutes from './leave.routes.js';
 
 const router = Router();
 
@@ -36,5 +40,13 @@ router.use('/admin', adminRoutes);
 router.use('/employees', employeesRoutes);
 router.use('/checklists', checklistsRoutes);
 router.use('/documents', documentsRoutes);
+
+// Phase 3: ATS Interviews, Scorecards & Job Offers
+router.use('/interviews', interviewsRoutes);
+router.use('/offers', offersRoutes);
+
+// Phase 4: Daily HR Operations — Attendance & Leave / PTO
+router.use('/attendance', attendanceRoutes);
+router.use('/leave', leaveRoutes);
 
 export default router;

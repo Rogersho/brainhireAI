@@ -25,7 +25,21 @@ const createApplicantSchema = z.object({
 });
 
 const updateApplicantSchema = z.object({
-  status: z.enum(['Shortlisted', 'In Review', 'Pending', 'Rejected', 'Hired']).optional(),
+  status: z
+    .enum([
+      'Applied',
+      'Pending',
+      'Screening',
+      'In Review',
+      'Shortlisted',
+      'Interview',
+      'Assessment',
+      'Offer',
+      'Hired',
+      'Rejected',
+      'Withdrawn',
+    ])
+    .optional(),
   score: z.number().min(0).max(100).optional(),
   skills: z.array(z.string().max(80)).optional(),
   experience: z.string().max(20000).optional(),

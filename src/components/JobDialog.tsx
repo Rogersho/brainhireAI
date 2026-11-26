@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 
 interface JobDialogProps {
   open: boolean;
@@ -26,7 +34,7 @@ export function JobDialog({
   initialData,
   title,
   loading,
-  error
+  error,
 }: JobDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
@@ -35,6 +43,7 @@ export function JobDialog({
     description: "",
     skills: "",
   });
+  const [generatingJd, setGeneratingJd] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -46,7 +55,42 @@ export function JobDialog({
         skills: Array.isArray(initialData?.skills) ? initialData.skills.join(", ") : "",
       });
     }
-  }, [open]); // Only depend on 'open' status
+  }, [open, initialData]);
+
+  const handleGenerateJd = async () => {
+    if (!formData.title.trim() || !formData.department.trim()) {
+      toast.error("Enter a Job Title and Department first to draft with AI.");
+      return;
+    }
+    setGeneratingJd(true);
+    try {
+      const res = await apiFetch<{ data: { description: string; skills: string[] } }>(
+        "/ai/generate-jd",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            title: formData.title,
+            department: formData.department,
+            location: formData.location,
+            skills: formData.skills
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          }),
+        }
+      );
+      setFormData((prev) => ({
+        ...prev,
+        description: res.data.description || prev.description,
+        skills: res.data.skills?.length ? res.data.skills.join(", ") : prev.skills,
+      }));
+      toast.success("Job description drafted with AI");
+    } catch (err: any) {
+      toast.error(err.message || "AI generation failed");
+    } finally {
+      setGeneratingJd(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,10 +99,17 @@ export function JobDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg" onInteractOutside={(e) => { if (loading) e.preventDefault(); }}>
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => {
+          if (loading) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-heading">{title}</DialogTitle>
-          <DialogDescription className="sr-only">Fill out the details for the job posting.</DialogDescription>
+          <DialogDescription className="sr-only">
+            Fill out the details for the job posting.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           {error && (
@@ -100,11 +151,28 @@ export function JobDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="job-desc">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="job-desc">Description</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleGenerateJd}
+                disabled={generatingJd}
+              >
+                {generatingJd ? (
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3 mr-1.5" />
+                )}
+                {generatingJd ? "Drafting..." : "Draft with AI"}
+              </Button>
+            </div>
             <Textarea
               id="job-desc"
               placeholder="Describe the role, responsibilities, and requirements..."
-              rows={5}
+              rows={6}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -118,12 +186,8 @@ export function JobDialog({
               onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
             />
           </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading}
-          >
-            {loading ? "Processing..." : (initialData ? "Update Job" : "Publish Job")}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Processing..." : initialData ? "Update Job" : "Publish Job"}
           </Button>
         </form>
       </DialogContent>
