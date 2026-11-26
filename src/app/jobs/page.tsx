@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, isHiringRole } from "@/context/AuthContext";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,8 @@ export default function JobsPage() {
   const { user, status: sessionStatus } = useAuth();
   
   const isGuest = sessionStatus === "unauthenticated";
-  const isRecruiter = user?.role === "Recruiter";
-  const isCandidate = user?.role === "Candidate" || isGuest;
+  const isRecruiter = isHiringRole(user?.role);
+  const isCandidate = !isRecruiter;
 
   const dispatch = useAppDispatch();
   const { items: jobs, status, error } = useAppSelector((state) => state.jobs);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth, UserRole } from "@/context/AuthContext";
+import { useAuth, UserRole, getDefaultHomeRoute } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,7 @@ export default function SignupPage() {
 
     try {
       const user = await register(formData);
-      router.push(user.role === "Recruiter" ? "/dashboard" : "/candidate-dashboard");
+      router.push(getDefaultHomeRoute(user.role));
     } catch (err: any) {
       setError(err.message || "Failed to register");
       setLoading(false);
@@ -72,13 +72,13 @@ export default function SignupPage() {
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="Recruiter" id="recruiter" className="peer sr-only" />
+                  <RadioGroupItem value="HRManager" id="recruiter" className="peer sr-only" />
                   <Label
                     htmlFor="recruiter"
                     className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-muted hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                   >
                     <Building className="mb-2 h-5 w-5" />
-                    Hire Talent
+                    HR / Hire Talent
                   </Label>
                 </div>
               </RadioGroup>

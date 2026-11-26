@@ -3,13 +3,37 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiFetch, setStoredToken } from "@/lib/api";
 
-export type UserRole = "Recruiter" | "Candidate";
+export type UserRole = "Admin" | "HRManager" | "HiringManager" | "Employee" | "Candidate";
+
+export function isHrRole(role?: string | null): boolean {
+  return role === "Admin" || role === "HRManager";
+}
+
+export function isHiringRole(role?: string | null): boolean {
+  return role === "Admin" || role === "HRManager" || role === "HiringManager";
+}
+
+export function isInternalRole(role?: string | null): boolean {
+  return (
+    role === "Admin" ||
+    role === "HRManager" ||
+    role === "HiringManager" ||
+    role === "Employee"
+  );
+}
+
+export function getDefaultHomeRoute(role?: string | null): string {
+  if (role === "Candidate") return "/candidate-dashboard";
+  if (role === "Employee") return "/employees";
+  return "/dashboard";
+}
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  isActive?: boolean;
 }
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -18,7 +42,12 @@ interface AuthContextValue {
   user: AuthUser | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (payload: { name: string; email: string; password: string; role: UserRole }) => Promise<AuthUser>;
+  register: (payload: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole | "Recruiter";
+  }) => Promise<AuthUser>;
   logout: (redirectTo?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -61,11 +90,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (payload: { name: string; email: string; password: string; role: UserRole }): Promise<AuthUser> => {
-      const res = await apiFetch<{ success: boolean; user: AuthUser; token?: string }>("/auth/register", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    async (payload: {
+      name: string;
+      email: string;
+      password: string;
+      role: UserRole | "Recruiter";
+    }): Promise<AuthUser> => {
+      const res = await apiFetch<{ success: boolean; user: AuthUser; token?: string }>(
+        "/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
       if (res.token) setStoredToken(res.token);
       setUser(res.user);
       setStatus("authenticated");

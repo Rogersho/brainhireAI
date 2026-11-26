@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
+import { isHrRole, isHiringRole } from '../middleware/auth.js';
 import {
   deleteFileFromS3,
   getPresignedDownloadUrl,
@@ -31,6 +32,7 @@ interface ApplicantJoinedRow {
   job_created_by?: string;
   candidate_name?: string;
   candidate_email?: string;
+  converted_employee_id?: string | null;
 }
 
 async function resolveResumeUrl(row: ApplicantJoinedRow): Promise<string | null> {
@@ -80,6 +82,7 @@ async function serializeApplicant(row: ApplicantJoinedRow) {
     experience: row.experience,
     resumeKey: row.resume_key,
     resumeUrl,
+    convertedEmployeeId: row.converted_employee_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -102,16 +105,23 @@ export async function getApplicants(req: Request, res: Response, next: NextFunct
              j.location AS job_location,
              j.created_by AS job_created_by,
              u.name AS candidate_name,
-             u.email AS candidate_email
+             u.email AS candidate_email,
+             e.id AS converted_employee_id
       FROM applicants a
       JOIN jobs j ON j.id = a.job_id
       LEFT JOIN users u ON u.id = a.user_id
+      LEFT JOIN employees e ON e.source_applicant_id = a.id
     `;
 
     let sql = baseSelect;
     const params: unknown[] = [];
 
-    if (user.role === 'Recruiter') {
+    if (isHrRole(user.role)) {
+      if (jobIdParam) {
+        sql += ' WHERE a.job_id = $1';
+        params.push(jobIdParam);
+      }
+    } else if (user.role === 'HiringManager') {
       sql += ' WHERE j.created_by = $1';
       params.push(user.id);
       if (jobIdParam) {
@@ -119,7 +129,7 @@ export async function getApplicants(req: Request, res: Response, next: NextFunct
         params.push(jobIdParam);
       }
     } else {
-      // Candidates can ONLY ever read their own applications
+      // Candidates & Employees can ONLY ever read their own applications
       sql += ' WHERE a.user_id = $1';
       params.push(user.id);
       if (jobIdParam) {
@@ -153,10 +163,12 @@ export async function getApplicantById(req: Request, res: Response, next: NextFu
               j.location AS job_location,
               j.created_by AS job_created_by,
               u.name AS candidate_name,
-              u.email AS candidate_email
+              u.email AS candidate_email,
+              e.id AS converted_employee_id
        FROM applicants a
        JOIN jobs j ON j.id = a.job_id
        LEFT JOIN users u ON u.id = a.user_id
+       LEFT JOIN employees e ON e.source_applicant_id = a.id
        WHERE a.id = $1`,
       [id]
     );
@@ -168,10 +180,11 @@ export async function getApplicantById(req: Request, res: Response, next: NextFu
 
     const applicant = result.rows[0];
     const user = req.user!;
-    const isOwningRecruiter = user.role === 'Recruiter' && applicant.job_created_by === user.id;
-    const isSelfCandidate = user.role === 'Candidate' && applicant.user_id === user.id;
+    const canViewAsHr = isHrRole(user.role);
+    const isOwningManager = user.role === 'HiringManager' && applicant.job_created_by === user.id;
+    const isSelfCandidate = applicant.user_id === user.id;
 
-    if (!isOwningRecruiter && !isSelfCandidate) {
+    if (!canViewAsHr && !isOwningManager && !isSelfCandidate) {
       res.status(403).json({ success: false, error: 'Forbidden: you cannot view this application' });
       return;
     }
@@ -215,10 +228,12 @@ export async function getApplicantResumeUrl(
 
     const row = result.rows[0];
     const user = req.user!;
-    const isOwningRecruiter = user.role === 'Recruiter' && row.job_created_by === user.id;
-    const isSelfCandidate = user.role === 'Candidate' && row.user_id === user.id;
+    const isAuthorized =
+      isHrRole(user.role) ||
+      (user.role === 'HiringManager' && row.job_created_by === user.id) ||
+      row.user_id === user.id;
 
-    if (!isOwningRecruiter && !isSelfCandidate) {
+    if (!isAuthorized) {
       res.status(403).json({ success: false, error: 'Forbidden: you cannot access this resume' });
       return;
     }
@@ -271,7 +286,7 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
 
     const job = jobRes.rows[0];
 
-    if (user.role === 'Recruiter' && job.created_by !== user.id) {
+    if (user.role === 'HiringManager' && job.created_by !== user.id) {
       res.status(403).json({ success: false, error: 'You can only add applicants to your own jobs' });
       return;
     }
@@ -389,10 +404,10 @@ export async function updateApplicant(req: Request, res: Response, next: NextFun
     }
 
     const existing = existingRes.rows[0];
-    if (existing.job_created_by !== req.user!.id) {
+    if (!isHrRole(req.user!.role) && existing.job_created_by !== req.user!.id) {
       res.status(403).json({
         success: false,
-        error: 'Forbidden: only the job owner can update this applicant',
+        error: 'Forbidden: only HR or the job owner can update this applicant',
       });
       return;
     }
@@ -510,8 +525,9 @@ export async function deleteApplicant(req: Request, res: Response, next: NextFun
     const row = existingRes.rows[0];
     const user = req.user!;
     const canDelete =
-      (user.role === 'Recruiter' && row.job_created_by === user.id) ||
-      (user.role === 'Candidate' && row.user_id === user.id);
+      isHrRole(user.role) ||
+      (isHiringRole(user.role) && row.job_created_by === user.id) ||
+      row.user_id === user.id;
 
     if (!canDelete) {
       res.status(403).json({ success: false, error: 'Forbidden: cannot delete this application' });

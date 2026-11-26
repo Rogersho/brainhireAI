@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, getDefaultHomeRoute } from "@/context/AuthContext";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
-  const dashboardLink = user?.role === "Candidate" ? "/candidate-dashboard" : "/dashboard";
+  const dashboardLink = getDefaultHomeRoute(user?.role);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-md">

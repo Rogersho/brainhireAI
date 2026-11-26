@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
+import { isHrRole } from '../middleware/auth.js';
 import { screenCandidate } from '../services/ai.service.js';
 
 export async function runScreening(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -24,7 +25,7 @@ export async function runScreening(req: Request, res: Response, next: NextFuncti
     }
 
     const job = jobRes.rows[0];
-    if (job.created_by !== req.user!.id) {
+    if (!isHrRole(req.user!.role) && job.created_by !== req.user!.id) {
       res.status(403).json({ success: false, error: 'Access denied - You did not create this job' });
       return;
     }

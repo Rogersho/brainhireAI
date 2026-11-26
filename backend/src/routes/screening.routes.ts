@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { runScreening } from '../controllers/screening.controller.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole, HIRING_ROLES } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
 import { aiLimiter } from '../middleware/rateLimit.js';
 
@@ -14,7 +14,7 @@ const runScreeningSchema = z.object({
 router.post(
   '/run',
   authenticate,
-  requireRole('Recruiter'),
+  requireRole(...HIRING_ROLES),
   aiLimiter,
   validateBody(runScreeningSchema),
   runScreening

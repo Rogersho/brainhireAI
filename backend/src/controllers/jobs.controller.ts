@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
+import { isHiringRole, isHrRole } from '../middleware/auth.js';
+import { logAudit } from '../services/audit.service.js';
 
 interface JobRow {
   id: string;
@@ -45,8 +47,8 @@ export async function getJobs(req: Request, res: Response, next: NextFunction): 
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
       }
-      if (req.user.role !== 'Recruiter') {
-        res.status(403).json({ success: false, error: 'Only recruiters can query myJobs' });
+      if (!isHiringRole(req.user.role)) {
+        res.status(403).json({ success: false, error: 'Only HR and hiring managers can query company jobs' });
         return;
       }
     }
@@ -58,7 +60,9 @@ export async function getJobs(req: Request, res: Response, next: NextFunction): 
     `;
     const params: unknown[] = [];
 
-    if (req.user?.role === 'Recruiter') {
+    if (isHrRole(req.user?.role)) {
+      // Admin & HRManager can manage all internal company jobs
+    } else if (req.user?.role === 'HiringManager') {
       sql += ' WHERE j.created_by = $1';
       params.push(req.user.id);
     } else {
@@ -96,16 +100,18 @@ export async function getJobById(req: Request, res: Response, next: NextFunction
     }
 
     const job = result.rows[0];
-    const isOwner = req.user?.role === 'Recruiter' && req.user.id === job.created_by;
+    const canManage =
+      isHrRole(req.user?.role) ||
+      (req.user?.role === 'HiringManager' && req.user.id === job.created_by);
 
-    // Non-active jobs are only visible to their owning recruiter
-    if (job.status !== 'Active' && !isOwner) {
+    // Non-active jobs are only visible to HR staff or their owning hiring manager
+    if (job.status !== 'Active' && !canManage) {
       res.status(403).json({ success: false, error: 'You do not have permission to view this job' });
       return;
     }
 
     let applicantCount: number | undefined;
-    if (isOwner) {
+    if (canManage) {
       const countRes = await query<{ count: string }>(
         'SELECT COUNT(*)::text AS count FROM applicants WHERE job_id = $1',
         [id]
@@ -185,7 +191,7 @@ export async function updateJob(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    if (existing.rows[0].created_by !== req.user!.id) {
+    if (!isHrRole(req.user!.role) && existing.rows[0].created_by !== req.user!.id) {
       res.status(403).json({ success: false, error: 'You do not have permission to edit this job' });
       return;
     }
@@ -246,13 +252,14 @@ export async function deleteJob(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    if (existing.rows[0].created_by !== req.user!.id) {
+    if (!isHrRole(req.user!.role) && existing.rows[0].created_by !== req.user!.id) {
       res.status(403).json({ success: false, error: 'You do not have permission to delete this job' });
       return;
     }
 
     // Cascade delete handles associated applicants and saved_jobs
     await query('DELETE FROM jobs WHERE id = $1', [id]);
+    await logAudit({ req, action: 'JOB_DELETED', entityType: 'job', entityId: id });
 
     res.json({
       success: true,

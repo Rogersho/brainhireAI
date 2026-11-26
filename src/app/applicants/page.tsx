@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Eye, UploadCloud, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, isHiringRole } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchApplicants, fetchMyApplicants, updateApplicant } from "@/store/slices/applicantsSlice";
@@ -19,7 +19,7 @@ import { unwrapResult } from "@reduxjs/toolkit";
 
 export default function ApplicantsPage() {
   const { user } = useAuth();
-  const isRecruiter = user?.role === "Recruiter";
+  const isRecruiter = isHiringRole(user?.role);
 
   const dispatch = useAppDispatch();
   const { items: applicantsRaw, status } = useAppSelector((state) => state.applicants);

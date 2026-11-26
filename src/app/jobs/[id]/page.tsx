@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, isHiringRole } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -24,8 +24,8 @@ export default function JobDetailPage() {
   const { user, status: sessionStatus } = useAuth();
   
   const isGuest = sessionStatus === "unauthenticated";
-  const isRecruiter = user?.role === "Recruiter";
-  const isCandidate = user?.role === "Candidate" || isGuest;
+  const isRecruiter = isHiringRole(user?.role);
+  const isCandidate = !isRecruiter;
   
   const jobs = useAppSelector(state => state.jobs.items);
   const currentJob = useAppSelector(state => state.jobs.currentJob);

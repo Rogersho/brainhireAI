@@ -3,13 +3,30 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { query } from '../db/pool.js';
 
-export type UserRole = 'Recruiter' | 'Candidate';
+export type UserRole = 'Admin' | 'HRManager' | 'HiringManager' | 'Employee' | 'Candidate';
+
+export const HR_ROLES: UserRole[] = ['Admin', 'HRManager'];
+export const HIRING_ROLES: UserRole[] = ['Admin', 'HRManager', 'HiringManager'];
+export const INTERNAL_ROLES: UserRole[] = ['Admin', 'HRManager', 'HiringManager', 'Employee'];
+
+export function isHrRole(role?: string | null): boolean {
+  return role === 'Admin' || role === 'HRManager';
+}
+
+export function isHiringRole(role?: string | null): boolean {
+  return role === 'Admin' || role === 'HRManager' || role === 'HiringManager';
+}
+
+export function isInternalRole(role?: string | null): boolean {
+  return role === 'Admin' || role === 'HRManager' || role === 'HiringManager' || role === 'Employee';
+}
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  isActive: boolean;
 }
 
 declare global {
@@ -29,7 +46,7 @@ interface JwtPayload {
   name: string;
 }
 
-export function signAuthToken(user: AuthUser): string {
+export function signAuthToken(user: Pick<AuthUser, 'id' | 'name' | 'email' | 'role'>): string {
   return jwt.sign(
     {
       sub: user.id,
@@ -77,25 +94,31 @@ async function resolveUserFromToken(token: string): Promise<AuthUser | null> {
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
     if (!decoded?.sub) return null;
 
-    // Verify user still exists in PostgreSQL (prevents deleted/stale tokens from working)
+    // Verify user still exists and is active in PostgreSQL
     const result = await query<{
       id: string;
       name: string;
       email: string;
       role: UserRole;
-    }>('SELECT id, name, email, role FROM users WHERE id = $1', [decoded.sub]);
+      is_active: boolean;
+    }>('SELECT id, name, email, role, is_active FROM users WHERE id = $1', [decoded.sub]);
 
     if (result.rows.length === 0) return null;
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row.is_active) return null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      isActive: row.is_active,
+    };
   } catch {
     return null;
   }
 }
 
-/**
- * Requires a valid JWT (via HttpOnly cookie or Authorization: Bearer header)
- * and loads the verified user record from PostgreSQL.
- */
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = extractToken(req);
   if (!token) {
@@ -105,7 +128,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
   const user = await resolveUserFromToken(token);
   if (!user) {
-    res.status(401).json({ success: false, error: 'Invalid or expired authentication token' });
+    res.status(401).json({ success: false, error: 'Invalid, expired, or deactivated account token' });
     return;
   }
 
@@ -113,9 +136,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   next();
 }
 
-/**
- * Attaches req.user if a valid token is present; continues as guest otherwise.
- */
 export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const token = extractToken(req);
   if (token) {
@@ -127,9 +147,6 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
   next();
 }
 
-/**
- * Role-Based Access Control (RBAC) middleware.
- */
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {

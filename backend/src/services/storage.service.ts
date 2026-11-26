@@ -57,6 +57,12 @@ export function buildResumeKey(
   return `uploads/${folder}/${userId}/${uniqueId}-${safeName}`;
 }
 
+export function buildDocumentKey(employeeId: string, originalName: string): string {
+  const safeName = sanitizeFilename(originalName);
+  const uniqueId = crypto.randomUUID();
+  return `uploads/hr-docs/${employeeId}/${uniqueId}-${safeName}`;
+}
+
 async function ensureBucketExists(s3: S3Client): Promise<void> {
   if (bucketVerified) return;
   try {

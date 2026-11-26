@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { formatRelativeTime, isValidUuid } from '../utils/helpers.js';
+import { isHiringRole } from '../middleware/auth.js';
 
 interface NotificationRow {
   id: string;
@@ -23,18 +24,18 @@ export async function getNotifications(req: Request, res: Response, next: NextFu
     );
 
     if (result.rows.length === 0) {
-      const welcomeDesc =
-        user.role === 'Recruiter'
-          ? 'Start by posting a job or reviewing applicants.'
-          : 'Start by uploading your CV or browsing open roles.';
-      const roleLabel = user.role === 'Recruiter' ? 'recruiter' : 'candidate';
+      const welcomeDesc = isHiringRole(user.role)
+        ? 'Start by setting up departments, managing employees, or posting a job.'
+        : user.role === 'Employee'
+        ? 'View your employee profile, org chart, and onboarding tasks.'
+        : 'Start by uploading your CV or browsing open roles.';
 
       await query(
         `INSERT INTO notifications (user_id, icon, title, description, type, read)
          VALUES
-           ($1, 'Brain', 'Welcome to Brainhire AI', $2, 'info', FALSE),
+           ($1, 'Bell', 'Welcome to Hoobe HR', $2, 'info', FALSE),
            ($1, 'CheckCircle', 'Account Verified', $3, 'success', TRUE)`,
-        [user.id, welcomeDesc, `Your ${roleLabel} account has been successfully verified.`]
+        [user.id, welcomeDesc, `Your ${user.role} account is active.`]
       );
 
       result = await query<NotificationRow>(

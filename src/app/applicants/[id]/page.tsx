@@ -4,12 +4,13 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Briefcase, Brain, Download, CheckCircle, AlertCircle, UserCheck, UserX, ExternalLink } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, Brain, Download, CheckCircle, AlertCircle, UserCheck, UserX, ExternalLink, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useAuth, isHrRole } from "@/context/AuthContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchApplicantById, updateApplicant } from "@/store/slices/applicantsSlice";
 import { toast } from "sonner";
@@ -17,8 +18,29 @@ import { unwrapResult } from "@reduxjs/toolkit";
 
 export default function CandidateProfilePage() {
   const { id } = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const hrAccess = isHrRole(user?.role);
   const dispatch = useAppDispatch();
   const { currentApplicant: candidate, status: appStatus } = useAppSelector((state) => state.applicants);
+  const [converting, setConverting] = useState(false);
+
+  const handleConvertToEmployee = async () => {
+    if (!candidate) return;
+    setConverting(true);
+    try {
+      const res = await apiFetch<{ success: boolean; message: string; data: { id: string } }>(
+        `/employees/convert-applicant/${candidate._id}`,
+        { method: "POST", body: JSON.stringify({}) }
+      );
+      toast.success(res.message || "Candidate converted to Employee!");
+      router.push(`/employees/${res.data.id}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to convert applicant to employee");
+    } finally {
+      setConverting(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -169,15 +191,32 @@ export default function CandidateProfilePage() {
                   <div>
                     <h4 className="text-sm font-semibold text-foreground mb-3">Update Status</h4>
                     
-                    {candidate.status !== "Hired" && (
+                    {candidate.status !== "Hired" ? (
                       <Button
                         variant="default"
                         className="w-full bg-success hover:bg-success/90 text-white mb-4 shadow-lg flex items-center justify-center gap-2 font-bold py-6"
                         onClick={() => handleUpdateStatus("Hired")}
                       >
-                         HIRE CANDIDATE
+                        HIRE CANDIDATE
                       </Button>
-                    )}
+                    ) : hrAccess ? (
+                      candidate.convertedEmployeeId ? (
+                        <Button variant="outline" className="w-full mb-4" asChild>
+                          <Link href={`/employees/${candidate.convertedEmployeeId}`}>
+                            <UserCheck className="mr-2 h-4 w-4" /> View Employee Profile
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full mb-4"
+                          onClick={handleConvertToEmployee}
+                          disabled={converting}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          {converting ? "Converting..." : "Convert to Employee & Onboard"}
+                        </Button>
+                      )
+                    ) : null}
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <Button

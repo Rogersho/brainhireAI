@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, getDefaultHomeRoute } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,7 @@ function LoginForm() {
       if (callbackUrl) {
         router.push(callbackUrl);
       } else {
-        router.push(user.role === "Candidate" ? "/candidate-dashboard" : "/dashboard");
+        router.push(getDefaultHomeRoute(user.role));
       }
       router.refresh();
     } catch (err: any) {

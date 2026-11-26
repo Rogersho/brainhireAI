@@ -8,7 +8,7 @@ import {
   updateApplicant,
   deleteApplicant,
 } from '../controllers/applicants.controller.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole, HIRING_ROLES } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
 
 const router = Router();
@@ -44,7 +44,7 @@ router.get('/:id', authenticate, getApplicantById);
 router.put(
   '/:id',
   authenticate,
-  requireRole('Recruiter'),
+  requireRole(...HIRING_ROLES),
   validateBody(updateApplicantSchema),
   updateApplicant
 );

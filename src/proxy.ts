@@ -4,7 +4,13 @@ import { jwtVerify } from "jose";
 
 const AUTH_COOKIE_NAME = "brainhire_token";
 
-async function verifySessionCookie(token: string | undefined): Promise<{ role?: string; sub?: string } | null> {
+const HIRING_ROLES = new Set(["Admin", "HRManager", "HiringManager"]);
+const INTERNAL_ROLES = new Set(["Admin", "HRManager", "HiringManager", "Employee"]);
+const HR_ROLES = new Set(["Admin", "HRManager"]);
+
+async function verifySessionCookie(
+  token: string | undefined
+): Promise<{ role?: string; sub?: string } | null> {
   if (!token) return null;
   try {
     const secret = new TextEncoder().encode(
@@ -30,6 +36,10 @@ export async function proxy(req: NextRequest) {
     "/candidate-dashboard",
     "/applicants",
     "/screening",
+    "/employees",
+    "/org-chart",
+    "/onboarding",
+    "/organization",
     "/notifications",
     "/settings",
   ];
@@ -41,19 +51,43 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Recruiter-only routes
+  const role = session?.role || "";
+
+  // Candidate-only portal
+  if (path.startsWith("/candidate-dashboard") && role !== "Candidate") {
+    return NextResponse.redirect(
+      new URL(role === "Employee" ? "/employees" : "/dashboard", req.url)
+    );
+  }
+
+  // Hiring & HR dashboard routes
   if (
     (path.startsWith("/dashboard") ||
       path.startsWith("/applicants") ||
       path.startsWith("/screening")) &&
-    session?.role !== "Recruiter"
+    !HIRING_ROLES.has(role)
   ) {
-    return NextResponse.redirect(new URL("/candidate-dashboard", req.url));
+    return NextResponse.redirect(
+      new URL(role === "Employee" ? "/employees" : "/candidate-dashboard", req.url)
+    );
   }
 
-  // Candidate-only routes
-  if (path.startsWith("/candidate-dashboard") && session?.role !== "Candidate") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  // HR-only admin & setup routes
+  if (
+    (path.startsWith("/organization") || path.startsWith("/onboarding")) &&
+    !HR_ROLES.has(role)
+  ) {
+    return NextResponse.redirect(
+      new URL(INTERNAL_ROLES.has(role) ? "/employees" : "/candidate-dashboard", req.url)
+    );
+  }
+
+  // Internal staff routes (Employees directory & Org Chart)
+  if (
+    (path.startsWith("/employees") || path.startsWith("/org-chart")) &&
+    !INTERNAL_ROLES.has(role)
+  ) {
+    return NextResponse.redirect(new URL("/candidate-dashboard", req.url));
   }
 
   return NextResponse.next();
@@ -65,6 +99,10 @@ export const config = {
     "/candidate-dashboard/:path*",
     "/applicants/:path*",
     "/screening/:path*",
+    "/employees/:path*",
+    "/org-chart/:path*",
+    "/onboarding/:path*",
+    "/organization/:path*",
     "/notifications/:path*",
     "/settings/:path*",
   ],
