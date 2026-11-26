@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(20) NOT NULL DEFAULT 'Candidate' CHECK (role IN ('Recruiter', 'Candidate')),
   resume_text TEXT,
   resume_hash VARCHAR(128),
+  resume_key TEXT,
   resume_cached_at TIMESTAMPTZ,
   skills TEXT[] NOT NULL DEFAULT '{}',
   ai_strengths TEXT[] NOT NULL DEFAULT '{}',
@@ -56,9 +57,14 @@ CREATE TABLE IF NOT EXISTS applicants (
   skills TEXT[] NOT NULL DEFAULT '{}',
   experience TEXT NOT NULL DEFAULT '',
   resume_url TEXT,
+  resume_key TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Idempotent column migrations for existing databases
+ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_key TEXT;
+ALTER TABLE applicants ADD COLUMN IF NOT EXISTS resume_key TEXT;
 
 -- Prevent duplicate applications from the same candidate for the same job
 CREATE UNIQUE INDEX IF NOT EXISTS idx_applicants_unique_user_job

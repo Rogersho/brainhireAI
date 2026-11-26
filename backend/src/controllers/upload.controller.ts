@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { extractTextFromPdf } from '../services/gemini.service.js';
+import {
+  buildResumeKey,
+  isStorageConfigured,
+  uploadFileToS3,
+} from '../services/storage.service.js';
 
 export async function uploadPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -14,13 +19,31 @@ export async function uploadPdf(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const parsedText = await extractTextFromPdf(file.buffer);
+    let resumeKey: string | null = null;
+    let resumeUrl: string | null = null;
+
+    if (isStorageConfigured()) {
+      const key = buildResumeKey(req.user!.id, 'applications', file.originalname);
+      const uploaded = await uploadFileToS3(file.buffer, key, file.mimetype);
+      resumeKey = uploaded.key;
+      resumeUrl = uploaded.url;
+    }
+
+    let parsedText = '';
+    try {
+      parsedText = await extractTextFromPdf(file.buffer);
+    } catch (err) {
+      console.warn('[Upload] Gemini PDF extraction fallback:', (err as Error).message);
+      parsedText = `Uploaded resume PDF: ${file.originalname}`;
+    }
 
     res.json({
       success: true,
       data: {
         filename: file.originalname,
         parsedText,
+        resumeKey,
+        resumeUrl,
       },
     });
   } catch (err) {

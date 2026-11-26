@@ -7,7 +7,7 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, FileText, UploadCloud, CheckCircle, AlertTriangle, Loader2, Zap, Briefcase, MapPin, TrendingUp } from "lucide-react";
+import { Brain, FileText, UploadCloud, CheckCircle, AlertTriangle, Loader2, Zap, Briefcase, MapPin, TrendingUp, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import Link from "next/link";
 
@@ -134,14 +134,24 @@ export default function ProfilePage() {
                               <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">Upload your resume to unlock AI matchmaking instantly. Recruiters cannot see your profile until it exists.</p>
                            </div>
                         ) : (
-                           <div className="p-5 bg-success/10 border border-success/20 rounded-xl flex items-center gap-4 shadow-sm">
-                              <div className="bg-success/20 p-2 rounded-full">
-                                 <CheckCircle className="h-8 w-8 text-success" />
+                           <div className="p-5 bg-success/10 border border-success/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                 <div className="bg-success/20 p-2 rounded-full">
+                                    <CheckCircle className="h-8 w-8 text-success" />
+                                 </div>
+                                 <div>
+                                    <p className="font-bold text-success text-lg">CV Parsed & Actively Scanning</p>
+                                    <p className="text-sm text-success/80 mt-1">BrainHire AI is continually scanning the live job market using this profile document.</p>
+                                 </div>
                               </div>
-                              <div>
-                                 <p className="font-bold text-success text-lg">CV Parsed & Actively Scanning</p>
-                                 <p className="text-sm text-success/80 mt-1">BrainHire AI is continually scanning the live job market using this profile document.</p>
-                              </div>
+                              {profile?.resumeUrl && (
+                                 <Button variant="outline" size="sm" asChild className="shrink-0">
+                                    <a href={profile.resumeUrl} target="_blank" rel="noopener noreferrer">
+                                       <ExternalLink className="mr-2 h-4 w-4" />
+                                       View Stored CV
+                                    </a>
+                                 </Button>
+                              )}
                            </div>
                         )}
                      </CardContent>

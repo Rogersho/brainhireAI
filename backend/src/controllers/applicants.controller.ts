@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
+import {
+  deleteFileFromS3,
+  getPresignedDownloadUrl,
+  isStorageConfigured,
+} from '../services/storage.service.js';
 
 interface ApplicantJoinedRow {
   id: string;
@@ -17,6 +22,7 @@ interface ApplicantJoinedRow {
   skills: string[];
   experience: string;
   resume_url: string | null;
+  resume_key: string | null;
   created_at: Date;
   updated_at: Date;
   job_title?: string;
@@ -27,7 +33,19 @@ interface ApplicantJoinedRow {
   candidate_email?: string;
 }
 
-function serializeApplicant(row: ApplicantJoinedRow) {
+async function resolveResumeUrl(row: ApplicantJoinedRow): Promise<string | null> {
+  if (row.resume_key && isStorageConfigured()) {
+    try {
+      return await getPresignedDownloadUrl(row.resume_key);
+    } catch (err) {
+      console.warn('[Applicants] Failed to sign resume URL:', (err as Error).message);
+    }
+  }
+  return row.resume_url;
+}
+
+async function serializeApplicant(row: ApplicantJoinedRow) {
+  const resumeUrl = await resolveResumeUrl(row);
   return {
     id: row.id,
     _id: row.id,
@@ -60,7 +78,8 @@ function serializeApplicant(row: ApplicantJoinedRow) {
     source: row.source,
     skills: row.skills || [],
     experience: row.experience,
-    resumeUrl: row.resume_url,
+    resumeKey: row.resume_key,
+    resumeUrl,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -112,7 +131,8 @@ export async function getApplicants(req: Request, res: Response, next: NextFunct
     sql += ' ORDER BY a.score DESC, a.created_at DESC';
 
     const result = await query<ApplicantJoinedRow>(sql, params);
-    res.json({ success: true, data: result.rows.map(serializeApplicant) });
+    const data = await Promise.all(result.rows.map(serializeApplicant));
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -156,7 +176,65 @@ export async function getApplicantById(req: Request, res: Response, next: NextFu
       return;
     }
 
-    res.json({ success: true, data: serializeApplicant(applicant) });
+    res.json({ success: true, data: await serializeApplicant(applicant) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getApplicantResumeUrl(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!isValidUuid(id)) {
+      res.status(400).json({ success: false, error: 'Invalid applicant ID' });
+      return;
+    }
+
+    const result = await query<{
+      id: string;
+      user_id: string | null;
+      resume_key: string | null;
+      resume_url: string | null;
+      job_created_by: string;
+    }>(
+      `SELECT a.id, a.user_id, a.resume_key, a.resume_url, j.created_by AS job_created_by
+       FROM applicants a
+       JOIN jobs j ON j.id = a.job_id
+       WHERE a.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Applicant not found' });
+      return;
+    }
+
+    const row = result.rows[0];
+    const user = req.user!;
+    const isOwningRecruiter = user.role === 'Recruiter' && row.job_created_by === user.id;
+    const isSelfCandidate = user.role === 'Candidate' && row.user_id === user.id;
+
+    if (!isOwningRecruiter && !isSelfCandidate) {
+      res.status(403).json({ success: false, error: 'Forbidden: you cannot access this resume' });
+      return;
+    }
+
+    if (row.resume_key && isStorageConfigured()) {
+      const url = await getPresignedDownloadUrl(row.resume_key);
+      res.json({ success: true, data: { url, key: row.resume_key } });
+      return;
+    }
+
+    if (row.resume_url) {
+      res.json({ success: true, data: { url: row.resume_url, key: null } });
+      return;
+    }
+
+    res.status(404).json({ success: false, error: 'No stored resume file for this applicant' });
   } catch (err) {
     next(err);
   }
@@ -165,7 +243,7 @@ export async function getApplicantById(req: Request, res: Response, next: NextFu
 export async function createApplicant(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = req.user!;
-    const { jobId, name, role, experience, source, skills, resumeUrl } = req.body as {
+    const { jobId, name, role, experience, source, skills, resumeUrl, resumeKey } = req.body as {
       jobId: string;
       name?: string;
       role?: string;
@@ -173,6 +251,7 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
       source?: string;
       skills?: string[];
       resumeUrl?: string;
+      resumeKey?: string;
     };
 
     if (!isValidUuid(jobId)) {
@@ -197,6 +276,22 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
       return;
     }
 
+    // Prevent attaching another user's S3 object key (IDOR protection)
+    let resolvedResumeKey: string | null = null;
+    if (resumeKey && resumeKey.trim()) {
+      const trimmedKey = resumeKey.trim();
+      const allowedPrefixA = `uploads/applications/${user.id}/`;
+      const allowedPrefixB = `uploads/profiles/${user.id}/`;
+      if (!trimmedKey.startsWith(allowedPrefixA) && !trimmedKey.startsWith(allowedPrefixB)) {
+        res.status(403).json({
+          success: false,
+          error: 'Forbidden: invalid resume storage key',
+        });
+        return;
+      }
+      resolvedResumeKey = trimmedKey;
+    }
+
     if (user.role === 'Candidate') {
       if (job.status !== 'Active') {
         res.status(400).json({ success: false, error: 'This job is no longer accepting applications' });
@@ -211,17 +306,28 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
         res.status(409).json({ success: false, error: 'You have already applied for this job' });
         return;
       }
+
+      // Fall back to the candidate's profile CV in S3 if no application-specific upload was provided
+      if (!resolvedResumeKey) {
+        const userCvRes = await query<{ resume_key: string | null }>(
+          'SELECT resume_key FROM users WHERE id = $1',
+          [user.id]
+        );
+        resolvedResumeKey = userCvRes.rows[0]?.resume_key || null;
+      }
     }
 
     const applicantName = user.role === 'Candidate' ? user.name : (name?.trim() || 'Candidate');
     const applicantUserId = user.role === 'Candidate' ? user.id : null;
     const applicantRole = role?.trim() || job.title;
     const applicantSource = source?.trim() || 'Job Board';
+    // Only persist external resumeUrl when no S3 resumeKey is stored (presigned URLs expire)
+    const storedResumeUrl = resolvedResumeKey ? null : (resumeUrl || null);
 
     // Always enforce initial score=0 and status='Pending' (prevents mass-assignment)
     const inserted = await query<ApplicantJoinedRow>(
-      `INSERT INTO applicants (name, job_id, user_id, role, score, status, source, skills, experience, resume_url)
-       VALUES ($1, $2, $3, $4, 0, 'Pending', $5, $6, $7, $8)
+      `INSERT INTO applicants (name, job_id, user_id, role, score, status, source, skills, experience, resume_url, resume_key)
+       VALUES ($1, $2, $3, $4, 0, 'Pending', $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         applicantName,
@@ -231,7 +337,8 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
         applicantSource,
         skills || [],
         experience,
-        resumeUrl || null,
+        storedResumeUrl,
+        resolvedResumeKey,
       ]
     );
 
@@ -248,7 +355,7 @@ export async function createApplicant(req: Request, res: Response, next: NextFun
       ]
     );
 
-    res.status(201).json({ success: true, data: serializeApplicant(created) });
+    res.status(201).json({ success: true, data: await serializeApplicant(created) });
   } catch (err) {
     next(err);
   }
@@ -368,7 +475,7 @@ export async function updateApplicant(req: Request, res: Response, next: NextFun
       );
     }
 
-    res.json({ success: true, data: serializeApplicant(updatedRes.rows[0]) });
+    res.json({ success: true, data: await serializeApplicant(updatedRes.rows[0]) });
   } catch (err) {
     next(err);
   }
@@ -382,8 +489,13 @@ export async function deleteApplicant(req: Request, res: Response, next: NextFun
       return;
     }
 
-    const existingRes = await query<{ id: string; user_id: string | null; job_created_by: string }>(
-      `SELECT a.id, a.user_id, j.created_by AS job_created_by
+    const existingRes = await query<{
+      id: string;
+      user_id: string | null;
+      resume_key: string | null;
+      job_created_by: string;
+    }>(
+      `SELECT a.id, a.user_id, a.resume_key, j.created_by AS job_created_by
        FROM applicants a
        JOIN jobs j ON j.id = a.job_id
        WHERE a.id = $1`,
@@ -407,6 +519,11 @@ export async function deleteApplicant(req: Request, res: Response, next: NextFun
     }
 
     await query('DELETE FROM applicants WHERE id = $1', [id]);
+
+    if (row.resume_key && row.resume_key.startsWith('uploads/applications/')) {
+      await deleteFileFromS3(row.resume_key);
+    }
+
     res.json({
       success: true,
       data: { id, _id: id, message: 'Applicant deleted successfully' },

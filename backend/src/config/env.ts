@@ -23,4 +23,11 @@ export const env = {
     .map((k) => k.trim())
     .filter(Boolean),
   geminiModel: process.env.GEMINI_MODEL || process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash',
+  s3: {
+    endpoint: process.env.AWS_ENDPOINT_URL_S3 || '',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    region: process.env.AWS_REGION || 'us-east-2',
+    bucket: process.env.S3_BUCKET || 'assets',
+  },
 };

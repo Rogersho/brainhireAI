@@ -106,12 +106,16 @@ export default function JobDetailPage() {
       const formData = new FormData();
       formData.append("file", file);
       
-      const uploadData = await apiFetch<{ success: boolean; data?: { parsedText?: string } }>("/upload", {
+      const uploadData = await apiFetch<{
+        success: boolean;
+        data?: { parsedText?: string; resumeKey?: string | null; resumeUrl?: string | null };
+      }>("/upload", {
         method: "POST",
         body: formData,
       });
       
       const parsedText = uploadData.data?.parsedText;
+      const resumeKey = uploadData.data?.resumeKey || undefined;
       
       await apiFetch("/applicants", {
         method: "POST",
@@ -121,7 +125,8 @@ export default function JobDetailPage() {
           role: job.title,
           experience: parsedText?.substring(0, 10000) || "Incomplete Resume Data", 
           source: "Job Board",
-          skills: []
+          skills: [],
+          resumeKey,
         })
       });
 

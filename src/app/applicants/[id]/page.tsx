@@ -4,11 +4,12 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Briefcase, Brain, Download, CheckCircle, AlertCircle, UserCheck, UserX } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, Brain, Download, CheckCircle, AlertCircle, UserCheck, UserX, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchApplicantById, updateApplicant } from "@/store/slices/applicantsSlice";
 import { toast } from "sonner";
@@ -34,6 +35,22 @@ export default function CandidateProfilePage() {
       toast.success(`Applicant status updated to ${newStatus}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
+    }
+  };
+
+  const handleOpenOriginalResume = async () => {
+    if (!candidate) return;
+    try {
+      const res = await apiFetch<{ success: boolean; data: { url: string } }>(
+        `/applicants/${candidate._id}/resume`
+      );
+      if (res.data?.url) {
+        window.open(res.data.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      toast.error("No original PDF resume found for this candidate.");
+    } catch (err: any) {
+      toast.error(err.message || "Could not load original resume file");
     }
   };
 
@@ -246,6 +263,12 @@ export default function CandidateProfilePage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {(candidate.resumeUrl || candidate.resumeKey) && (
+                <Button variant="default" className="w-full" onClick={handleOpenOriginalResume}>
+                  <ExternalLink className="mr-2 h-4 w-4" />View Original Resume (PDF)
+                </Button>
+              )}
 
               <Button variant="outline" className="w-full" onClick={handleDownloadResume}>
                 <Download className="mr-2 h-4 w-4" />Download CV (Text)

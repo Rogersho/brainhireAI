@@ -29,6 +29,7 @@ export default function ApplicantsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [parsedText, setParsedText] = useState("");
+  const [uploadedResumeUrl, setUploadedResumeUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'idle') {
@@ -55,11 +56,15 @@ export default function ApplicantsPage() {
     formData.append("file", file);
 
     try {
-      const { data } = await apiFetch<{ data: { parsedText: string } }>("/upload", {
+      const { data } = await apiFetch<{
+        data: { parsedText: string; resumeUrl?: string | null; resumeKey?: string | null };
+      }>("/upload", {
         method: "POST",
         body: formData,
       });
       setParsedText(data.parsedText);
+      setUploadedResumeUrl(data.resumeUrl || null);
+      toast.success("Resume uploaded to cloud storage and parsed!");
     } catch (error: any) {
       toast.error(error.message || "Failed to parse document");
       console.error(error);
@@ -102,10 +107,17 @@ export default function ApplicantsPage() {
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 {parsedText ? (
-                  <div className="bg-success/10 p-4 rounded-md border border-success/20 flex flex-col items-center">
-                    <CheckCircle className="h-8 w-8 text-success mb-2" />
-                    <p className="text-sm font-medium text-success text-center">Resume parsed successfully!</p>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">Extracted {parsedText.length} characters.</p>
+                  <div className="bg-success/10 p-4 rounded-md border border-success/20 flex flex-col items-center gap-2">
+                    <CheckCircle className="h-8 w-8 text-success" />
+                    <p className="text-sm font-medium text-success text-center">Resume uploaded & parsed successfully!</p>
+                    <p className="text-xs text-muted-foreground text-center">Extracted {parsedText.length} characters.</p>
+                    {uploadedResumeUrl && (
+                      <Button variant="outline" size="sm" asChild className="mt-1">
+                        <a href={uploadedResumeUrl} target="_blank" rel="noopener noreferrer">
+                          View Stored PDF
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>

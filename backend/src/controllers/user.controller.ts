@@ -3,6 +3,13 @@ import crypto from 'node:crypto';
 import { query } from '../db/pool.js';
 import { isValidUuid } from '../utils/helpers.js';
 import { analyzeResumeText, extractTextFromPdf } from '../services/gemini.service.js';
+import {
+  buildResumeKey,
+  deleteFileFromS3,
+  getPresignedDownloadUrl,
+  isStorageConfigured,
+  uploadFileToS3,
+} from '../services/storage.service.js';
 
 export async function getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -13,13 +20,14 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
       role: string;
       resume_text: string | null;
       resume_hash: string | null;
+      resume_key: string | null;
       resume_cached_at: Date | null;
       skills: string[];
       ai_strengths: string[];
       ai_weaknesses: string[];
       created_at: Date;
     }>(
-      `SELECT id, name, email, role, resume_text, resume_hash, resume_cached_at,
+      `SELECT id, name, email, role, resume_text, resume_hash, resume_key, resume_cached_at,
               skills, ai_strengths, ai_weaknesses, created_at
        FROM users
        WHERE id = $1`,
@@ -37,6 +45,15 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
     );
 
     const row = userRes.rows[0];
+    let resumeUrl: string | null = null;
+    if (row.resume_key && isStorageConfigured()) {
+      try {
+        resumeUrl = await getPresignedDownloadUrl(row.resume_key);
+      } catch (err) {
+        console.warn('[Profile] Could not sign resume URL:', (err as Error).message);
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -47,6 +64,8 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
         role: row.role,
         resumeText: row.resume_text,
         resumeHash: row.resume_hash,
+        resumeKey: row.resume_key,
+        resumeUrl,
         resumeCachedAt: row.resume_cached_at,
         skills: row.skills || [],
         aiAnalysis:
@@ -90,6 +109,22 @@ export async function uploadProfileResume(
       return;
     }
 
+    const prevRes = await query<{ resume_key: string | null }>(
+      'SELECT resume_key FROM users WHERE id = $1',
+      [req.user!.id]
+    );
+    const previousKey = prevRes.rows[0]?.resume_key || null;
+
+    let resumeKey: string | null = previousKey;
+    let resumeUrl: string | null = null;
+
+    if (isStorageConfigured()) {
+      const key = buildResumeKey(req.user!.id, 'profiles', file.originalname);
+      const uploaded = await uploadFileToS3(file.buffer, key, file.mimetype);
+      resumeKey = uploaded.key;
+      resumeUrl = uploaded.url;
+    }
+
     const resumeHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
     let extractedText = '';
@@ -123,19 +158,26 @@ export async function uploadProfileResume(
       `UPDATE users
        SET resume_text = $1,
            resume_hash = $2,
+           resume_key = $3,
            resume_cached_at = NOW(),
-           skills = $3,
-           ai_strengths = $4,
-           ai_weaknesses = $5
-       WHERE id = $6`,
-      [extractedText, resumeHash, skills, strengths, weaknesses, req.user!.id]
+           skills = $4,
+           ai_strengths = $5,
+           ai_weaknesses = $6
+       WHERE id = $7`,
+      [extractedText, resumeHash, resumeKey, skills, strengths, weaknesses, req.user!.id]
     );
+
+    if (previousKey && resumeKey && previousKey !== resumeKey) {
+      await deleteFileFromS3(previousKey);
+    }
 
     res.json({
       success: true,
       message: `${file.originalname} uploaded and analyzed successfully!`,
       profile: {
         fileName: file.originalname,
+        resumeKey,
+        resumeUrl,
         skills,
         aiAnalysis: { strengths, weaknesses },
       },

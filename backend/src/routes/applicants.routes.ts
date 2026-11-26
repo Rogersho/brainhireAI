@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   getApplicants,
   getApplicantById,
+  getApplicantResumeUrl,
   createApplicant,
   updateApplicant,
   deleteApplicant,
@@ -19,7 +20,8 @@ const createApplicantSchema = z.object({
   experience: z.string().min(1, 'Resume/experience content is required').max(20000),
   source: z.string().max(100).optional(),
   skills: z.array(z.string().max(80)).optional(),
-  resumeUrl: z.string().url().optional().or(z.literal('')),
+  resumeUrl: z.string().url().optional().or(z.literal('')).nullable(),
+  resumeKey: z.string().max(500).optional().nullable(),
 });
 
 const updateApplicantSchema = z.object({
@@ -28,6 +30,7 @@ const updateApplicantSchema = z.object({
   skills: z.array(z.string().max(80)).optional(),
   experience: z.string().max(20000).optional(),
   resumeUrl: z.string().nullable().optional(),
+  resumeKey: z.string().max(500).nullable().optional(),
   source: z.string().max(100).optional(),
   name: z.string().min(1).max(150).optional(),
   role: z.string().min(1).max(200).optional(),
@@ -36,6 +39,7 @@ const updateApplicantSchema = z.object({
 // Every applicant endpoint requires authentication + role/ownership authorization
 router.get('/', authenticate, getApplicants);
 router.post('/', authenticate, validateBody(createApplicantSchema), createApplicant);
+router.get('/:id/resume', authenticate, getApplicantResumeUrl);
 router.get('/:id', authenticate, getApplicantById);
 router.put(
   '/:id',
