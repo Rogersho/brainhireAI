@@ -1,0 +1,91 @@
+================================================================================
+PHASE 6 — PERFORMANCE, TRAINING, POLICIES, HR HELPDESK & EXECUTIVE ANALYTICS
+================================================================================
+
+OBJECTIVE
+---------
+Complete the real-world HR ecosystem with performance reviews & OKRs, continuous
+feedback, training/certifications, company announcements & policy acknowledgements,
+an internal HR helpdesk, and an AI-assisted Executive HR Analytics dashboard.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Performance & Goals:
+  * `review_cycles`: id, name (e.g. "H2 2026 Performance Review"), start_date, end_date,
+    status ('Draft', 'Active', 'Closed'), created_by
+  * `performance_reviews`: id, cycle_id (FK review_cycles), employee_id (FK employees),
+    reviewer_id (FK employees/users), self_rating (1-5), self_comments,
+    manager_rating (1-5), manager_comments, final_rating (1-5),
+    ai_summary, status ('Pending Self', 'Pending Manager', 'Completed'), completed_at
+  * `employee_goals`: id, employee_id (FK employees), cycle_id (nullable),
+    title, description, metric_target, progress_percent (0-100),
+    due_date, status ('On Track', 'At Risk', 'Completed', 'Dropped'), created_by
+  * `one_on_one_notes`: id, employee_id, manager_id, meeting_date, agenda,
+    action_items, private_notes, created_at
+- Training & Certifications:
+  * `training_records`: id, employee_id, title, provider, category,
+    completion_date, expiry_date, certificate_s3_key, status ('Assigned', 'In Progress', 'Completed')
+- Company Announcements & Policy Library:
+  * `announcements`: id, title, body, category ('General', 'HR Update', 'Event', 'Urgent'),
+    target_department_id (nullable = all company), is_pinned BOOLEAN, author_id, created_at
+  * `company_policies`: id, title, version, category ('Handbook', 'Code of Conduct', 'Remote Work',
+    'Security', 'Leave Policy', 'Benefits'), content_markdown, document_s3_key,
+    requires_acknowledgement BOOLEAN DEFAULT TRUE, published_by, published_at
+  * `policy_acknowledgements`: policy_id (FK), employee_id (FK), acknowledged_at,
+    PRIMARY KEY (policy_id, employee_id)
+- Internal HR Helpdesk:
+  * `hr_tickets`: id, ticket_number (UNIQUE e.g. HR-1001), employee_id (FK employees),
+    category ('Payroll', 'Leave', 'Benefits', 'IT / Access', 'Workplace', 'Document Request', 'Other'),
+    priority ('Low', 'Medium', 'High', 'Urgent'), subject, description,
+    status ('Open', 'In Progress', 'Waiting on Employee', 'Resolved', 'Closed'),
+    assigned_to (FK users), resolved_at, created_at
+  * `hr_ticket_messages`: id, ticket_id (FK hr_tickets ON DELETE CASCADE),
+    sender_id (FK users), body, attachment_s3_key, is_internal_note BOOLEAN, created_at
+
+2. AI ENHANCEMENTS (NVIDIA NIM — backend/src/services/ai.service.ts)
+--------------------------------------------------------------------
+- `summarizePerformanceReview(goals, selfComments, managerComments)` — Neutral, constructive review synthesis
+- `generateHrExecutiveBrief(metricsSnapshot)` — Turns live headcount, hiring funnel, attendance,
+  leave, and payroll stats into a crisp monthly executive summary for leadership
+- `draftHrPolicyOrAnnouncement(topic, tone, companyName)` — Helps HR draft clear internal memos & policies fast
+
+3. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Performance (`/api/performance`):
+  * `GET/POST/PATCH /api/performance/cycles` (Admin, HRManager)
+  * `GET /api/performance/reviews` (HR sees all; Managers see direct reports; Employees see own)
+  * `PATCH /api/performance/reviews/:id/self` (Employee self)
+  * `PATCH /api/performance/reviews/:id/manager` (Assigned Manager / HR)
+  * `GET/POST/PATCH/DELETE /api/performance/goals` (Employee/Manager/HR)
+  * `GET/POST /api/performance/one-on-ones` (Manager & direct Employee only)
+- Training (`/api/training`):
+  * `GET/POST/PATCH /api/training` (Employee uploads certificate to S3; HR/Manager assigns courses)
+- Announcements & Policies (`/api/communications`):
+  * `GET/POST/DELETE /api/communications/announcements` (All internal read; HR/Admin write)
+  * `GET/POST/PUT /api/communications/policies` (All internal read; HR/Admin write + S3 PDF upload)
+  * `POST /api/communications/policies/:id/acknowledge` (Employee)
+  * `GET /api/communications/policies/:id/acknowledgements` (HR/Admin — compliance tracker)
+- HR Helpdesk (`/api/helpdesk`):
+  * `GET/POST /api/helpdesk/tickets` (Employee sees own; HR/Admin sees all)
+  * `GET/POST /api/helpdesk/tickets/:id/messages` (Owner or HR/Admin; `is_internal_note` hidden from Employee)
+  * `PATCH /api/helpdesk/tickets/:id` (HR/Admin — assign, change priority/status, resolve)
+- Executive Analytics (`/api/analytics/hr-overview` — Admin, HRManager):
+  * Headcount by department/location/type, monthly hiring velocity, attrition/turnover rate,
+    average time-to-hire, open requisitions, attendance rate, leave utilization,
+    monthly payroll spend by department, pending HR approvals count, policy compliance %
+
+4. FRONTEND (Next.js App Router)
+--------------------------------
+- `/performance` — Active Review Cycles, Goal/OKR progress bars, Self & Manager Review forms with AI Summary assist, 1:1 notes log
+- `/policies` — Clean Company Policy Library with PDF viewer, "I Acknowledge" one-click sign-off, and HR Compliance Dashboard showing who has/hasn't signed
+- `/announcements` — Company Noticeboard integrated into both HR Dashboard and Employee Home
+- `/helpdesk` — Minimalist HR Support Ticket portal (Employee submit + thread view; HR triage queue + SLA status)
+- `/analytics` — Executive HR Analytics Dashboard (clean minimalist charts, KPI cards, department breakdowns, and "Generate AI Executive Brief" button)
+
+5. VERIFICATION CRITERIA
+------------------------
+- Full performance cycle completes cleanly (HR launches cycle -> Employee submits self-review -> Manager submits rating -> AI generates synthesis)
+- Policy acknowledgement rate updates live as employees sign off
+- HR Helpdesk private internal notes are never exposed to the employee who filed the ticket
+- Executive Analytics queries return accurate live aggregates from Neon PostgreSQL across all modules
+================================================================================

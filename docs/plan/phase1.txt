@@ -1,0 +1,77 @@
+================================================================================
+PHASE 1 — FOUNDATION, COMPANY STRUCTURE, MULTI-ROLE RBAC & AUDIT LOGS
+================================================================================
+
+OBJECTIVE
+---------
+Establish the core organizational backbone so Hoobe HR functions as an internal
+company HR platform with real enterprise roles, departments, locations, job
+positions, company settings, and tamper-evident audit trails.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Update `users` table:
+  * Expand `role` CHECK constraint to:
+    ('Admin', 'HRManager', 'HiringManager', 'Employee', 'Candidate')
+  * Migrate existing 'Recruiter' rows -> 'HRManager'
+  * Add `is_active BOOLEAN DEFAULT TRUE`, `avatar_key TEXT`, `last_login_at TIMESTAMPTZ`
+- Create `company_settings`:
+  * id, company_name, legal_name, industry, company_size, website,
+    default_currency, timezone, work_week_days (TEXT[]), logo_key,
+    fiscal_year_start_month, updated_at
+- Create `departments`:
+  * id, name (UNIQUE), code, description, head_user_id (FK users),
+    parent_department_id (self-FK for sub-departments), budget_amount, created_at
+- Create `locations`:
+  * id, name, city, country, timezone, address, is_headquarters, created_at
+- Create `job_positions` (standardized internal role catalog / grades):
+  * id, title, department_id (FK departments), level/grade (e.g., L1-L7, Junior/Senior/Lead),
+    min_salary, max_salary, currency, description, is_active
+- Create `audit_logs`:
+  * id, actor_id (FK users), actor_role, action (e.g. 'EMPLOYEE_CREATED', 'ROLE_CHANGED',
+    'PAYROLL_FINALIZED'), entity_type, entity_id, metadata (JSONB), ip_address, created_at
+
+2. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Middleware upgrade (`backend/src/middleware/auth.ts`):
+  * Support multi-role `requireRole(...roles)` + granular permission helper
+    (`isHrStaff`, `isManagerOrAbove`, `requireActiveUser`)
+  * Verify user `is_active` status on auth
+- Audit helper (`backend/src/services/audit.service.ts`):
+  * Non-blocking helper to record sensitive HR actions automatically
+- New routes & controllers:
+  * `GET /api/company` (authenticated) & `PUT /api/company` (Admin, HRManager)
+  * `GET /api/departments` (internal staff), `POST/PUT/DELETE /api/departments/:id` (Admin, HRManager)
+  * `GET /api/locations` (internal staff), `POST/PUT/DELETE /api/locations/:id` (Admin, HRManager)
+  * `GET /api/positions` (internal staff), `POST/PUT/DELETE /api/positions/:id` (Admin, HRManager)
+  * `GET /api/admin/users` (Admin, HRManager) — list users, filter by role/status
+  * `PATCH /api/admin/users/:id/role` (Admin only) — assign/change roles & active status
+  * `GET /api/admin/audit-logs` (Admin, HRManager) — paginated, filterable activity log
+
+3. FRONTEND (Next.js App Router)
+--------------------------------
+- Update `AuthContext.tsx` & `src/proxy.ts` for all 5 roles:
+  * Admin / HRManager -> `/dashboard` (Full HR Suite)
+  * HiringManager -> `/dashboard` (Department Hiring & Team Management)
+  * Employee -> `/employee` (Employee Self-Service Hub)
+  * Candidate -> `/candidate-dashboard` (External Applicant Portal)
+- Role-aware sidebar navigation in `DashboardLayout.tsx`:
+  * Grouped clean minimalist sections:
+    - Overview (Dashboard, Notifications)
+    - Recruitment (Jobs, Applicants, AI Screening)
+    - People (Employees, Org Chart, Onboarding)
+    - Operations (Attendance, Leave & PTO, Payroll, Expenses)
+    - Company (Departments, Positions, Policies, Settings, Audit Logs)
+- New pages:
+  * `/organization` — Manage Departments, Office Locations & Job Positions
+  * `/settings/company` — Company Profile, Work Week, Currency & Timezone
+  * `/settings/roles` — User Access & Role Management + Audit Trail viewer
+
+4. VERIFICATION CRITERIA
+------------------------
+- Existing recruiter & candidate accounts migrate without data loss
+- Non-admin users receive 403 on role-change and company-config endpoints
+- Creating a department, location, and job position persists in Neon PostgreSQL
+  and records entries in `audit_logs`
+- Both backend and frontend pass strict TypeScript build with 0 errors
+================================================================================

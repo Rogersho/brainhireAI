@@ -1,0 +1,83 @@
+================================================================================
+PHASE 2 — EMPLOYEE DIRECTORY, ORG CHART, LIFECYCLE, ONBOARDING & DOCUMENT VAULT
+================================================================================
+
+OBJECTIVE
+---------
+Enable HR to manage every internal worker in one authoritative directory, convert
+hired candidates into employees with one click, automate onboarding/offboarding
+checklists, and store confidential HR documents securely in Neon S3.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Create `employees`:
+  * id (UUID), user_id (UNIQUE FK users, nullable until account provisioned)
+  * employee_code (UNIQUE, e.g. EMP-0001)
+  * first_name, last_name, work_email (UNIQUE), personal_email, phone
+  * department_id (FK departments), location_id (FK locations), position_id (FK job_positions)
+  * job_title, manager_id (self-FK employees — reporting hierarchy)
+  * employment_type ('Full-Time', 'Part-Time', 'Contract', 'Intern')
+  * work_mode ('On-Site', 'Remote', 'Hybrid')
+  * status ('Active', 'Probation', 'On Leave', 'Suspended', 'Terminated')
+  * hire_date, probation_end_date, termination_date, termination_reason
+  * date_of_birth, nationality, address, emergency_contact_name, emergency_contact_phone
+  * source_applicant_id (FK applicants, tracks hire origin)
+  * created_at, updated_at
+- Create `onboarding_templates` & `onboarding_template_tasks`:
+  * Reusable checklist templates (e.g., "Engineering Onboarding", "Standard Offboarding")
+  * Tasks with default assignee role ('HRManager', 'HiringManager', 'Employee', 'IT'),
+    due_offset_days, category ('Paperwork', 'IT & Access', 'Training', 'Equipment', 'Exit')
+- Create `employee_checklist_tasks`:
+  * id, employee_id (FK employees), type ('Onboarding' | 'Offboarding'),
+    title, description, category, assigned_to (FK users), due_date,
+    status ('Pending', 'In Progress', 'Completed'), completed_at, completed_by
+- Create `employee_documents`:
+  * id, employee_id (FK employees), title,
+    category ('Contract', 'ID / Passport', 'NDA', 'Tax Form', 'Certificate', 'Offer Letter', 'Other')
+  * s3_key, file_name, mime_type, file_size_bytes
+  * expiry_date (for visas, IDs, certifications — triggers HR reminders)
+  * uploaded_by (FK users), is_visible_to_employee BOOLEAN, created_at
+
+2. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Employees CRUD (`/api/employees`):
+  * `GET /api/employees` — Filter by department, location, status, search query;
+    HR/Admin see full records, Managers see team + directory basics, Employees see public directory only (no sensitive personal/salary fields!)
+  * `GET /api/employees/:id` — Full profile for HR/Admin, direct Manager, or self
+  * `POST /api/employees` (Admin, HRManager) — Direct employee creation + optional user account invite
+  * `PUT /api/employees/:id` (Admin, HRManager; limited self-update for phone/address/emergency contact by Employee)
+  * `POST /api/employees/convert-applicant/:applicantId` (Admin, HRManager) —
+    One-click convert a 'Hired' applicant into an Employee record, carry over resume to Document Vault,
+    auto-provision Employee role, and spawn Onboarding Checklist from template
+  * `POST /api/employees/:id/offboard` (Admin, HRManager) — Initiate offboarding workflow, set termination date, spawn Offboarding tasks
+  * `GET /api/employees/org-chart` (internal staff) — Recursive reporting tree (CEO -> Managers -> Reports)
+- Checklists (`/api/checklists`):
+  * `GET/POST/PUT/DELETE /api/checklists/templates` (Admin, HRManager)
+  * `GET /api/employees/:id/tasks` (HR/Admin, Manager, self)
+  * `PATCH /api/checklists/tasks/:taskId` (Assigned user, HR/Admin)
+- Document Vault (`/api/employees/:id/documents`):
+  * `POST /api/employees/:id/documents` — Upload to Neon S3 (`uploads/hr-docs/{employeeId}/{uuid}-{filename}`)
+  * `GET /api/employees/:id/documents` — List metadata (respecting `is_visible_to_employee`)
+  * `GET /api/employees/:id/documents/:docId/download` — Authorized fresh presigned S3 URL
+  * `DELETE /api/employees/:id/documents/:docId` (Admin, HRManager) — Deletes DB row + S3 object
+  * `GET /api/documents/expiring` (Admin, HRManager) — Docs expiring within 30/60 days
+
+3. FRONTEND (Next.js App Router)
+--------------------------------
+- `/employees` — Clean searchable Employee Directory (table & card toggle, status pills, department filter, "Add Employee" modal, CSV export)
+- `/employees/[id]` — Tabbed Employee Profile:
+  * Overview (Personal, Job, Manager, Emergency Contact)
+  * Onboarding / Offboarding Checklist (interactive completion progress bar)
+  * Documents Vault (drag-and-drop S3 upload, category tags, expiry badges, secure view/download)
+  * Timeline (Job/Status history)
+- `/org-chart` — Visual interactive Department & Reporting Tree
+- `/onboarding` — HR overview of all active onboarding & offboarding pipelines + Template Manager
+- On `/applicants/[id]` — Add "Convert to Employee" button when status is `Hired`
+
+4. VERIFICATION CRITERIA
+------------------------
+- Hiring an applicant and clicking "Convert to Employee" creates a linked employee record,
+  moves/links their resume, and generates onboarding tasks automatically
+- Regular employees cannot read another employee's confidential documents (403 enforced)
+- Uploading & downloading a contract PDF works end-to-end with Neon S3 presigned URLs
+================================================================================

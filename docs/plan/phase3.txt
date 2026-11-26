@@ -1,0 +1,87 @@
+================================================================================
+PHASE 3 — COMPLETE HIRING & ATS SUITE (REQUISITIONS, INTERVIEWS, OFFERS & AI)
+================================================================================
+
+OBJECTIVE
+---------
+Upgrade the existing recruiting & NVIDIA AI screening engine into an end-to-end
+internal hiring workflow covering headcount requisitions, multi-stage pipelines,
+interview scheduling & scorecards, formal offer letters, and AI recruiting tools.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Enhance `jobs` table:
+  * department_id (FK departments), location_id (FK locations), position_id (FK job_positions)
+  * hiring_manager_id (FK users), employment_type, work_mode
+  * salary_min, salary_max, currency, headcount (INT DEFAULT 1), filled_count (INT DEFAULT 0)
+  * approval_status ('Draft', 'Pending Approval', 'Approved', 'Rejected')
+  * approved_by (FK users), approved_at, closing_date
+- Enhance `applicants` table:
+  * Expand pipeline stages:
+    ('Applied', 'Screening', 'Interview', 'Assessment', 'Offer', 'Hired', 'Rejected', 'Withdrawn')
+  * email, phone, linkedin_url, portfolio_url, expected_salary, notice_period
+  * rejection_reason, tags (TEXT[])
+- Create `interviews`:
+  * id, applicant_id (FK applicants), job_id (FK jobs)
+  * title (e.g., "Technical Round 1", "Culture Fit"), round_number
+  * scheduled_at (TIMESTAMPTZ), duration_minutes, mode ('Video', 'In-Person', 'Phone')
+  * meeting_link_or_location, interviewer_ids (UUID[])
+  * status ('Scheduled', 'Completed', 'Cancelled', 'No-Show'), created_by
+- Create `interview_scorecards`:
+  * id, interview_id (FK interviews), interviewer_id (FK users)
+  * technical_score (1-5), communication_score (1-5), problem_solving_score (1-5),
+    culture_fit_score (1-5), overall_recommendation ('Strong Hire', 'Hire', 'Neutral', 'No Hire')
+  * strengths_notes, concerns_notes, submitted_at
+  * UNIQUE (interview_id, interviewer_id)
+- Create `job_offers`:
+  * id, applicant_id (FK applicants), job_id (FK jobs), created_by (FK users)
+  * proposed_salary, currency, start_date, employment_type, benefits_summary,
+    custom_terms, offer_letter_text, offer_pdf_key (S3)
+  * status ('Draft', 'Sent', 'Accepted', 'Declined', 'Expired', 'Withdrawn')
+  * sent_at, responded_at, expires_at
+- Create `applicant_notes`:
+  * id, applicant_id (FK applicants), author_id (FK users), content, is_private, created_at
+
+2. AI COPILOT UPGRADES (NVIDIA NIM — backend/src/services/ai.service.ts)
+------------------------------------------------------------------------
+- `generateJobDescription(title, department, skills, seniority)` — One-click polished JD drafting
+- `generateInterviewQuestions(jobDescription, resumeText, roundType)` — Tailored role + gap-focused interview guide
+- `summarizeInterviewFeedback(scorecards)` — Synthesize multi-interviewer scorecards into a consensus brief
+- `draftOfferLetter(companyName, candidateName, jobTitle, salary, startDate, benefits)` — Clean formal offer draft
+
+3. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Job Requisition Approvals:
+  * `POST /api/jobs/:id/submit-approval` (HiringManager)
+  * `POST /api/jobs/:id/approve` / `reject` (Admin, HRManager)
+- Hiring Pipeline & Notes:
+  * `PATCH /api/applicants/:id/stage` (Admin, HRManager, job's HiringManager)
+  * `GET/POST /api/applicants/:id/notes` (HR/Admin, job's HiringManager — never visible to Candidates)
+- Interviews & Scorecards (`/api/interviews`):
+  * `GET /api/interviews` (HR sees all; Managers/Interviewers see assigned; Candidates see own)
+  * `POST /api/interviews`, `PATCH /api/interviews/:id` (HR/Admin, HiringManager)
+  * `POST /api/interviews/:id/scorecard` (Assigned interviewer only)
+  * `GET /api/interviews/:id/scorecards` (HR/Admin, HiringManager)
+- Offers (`/api/offers`):
+  * `GET/POST/PUT /api/offers` (Admin, HRManager)
+  * `POST /api/offers/:id/send` (Admin, HRManager — notifies candidate)
+  * `POST /api/offers/:id/respond` (Candidate self — Accept / Decline; auto-updates applicant to Hired on Accept)
+- AI Copilot endpoints (`/api/ai/*`, rate-limited + role-gated):
+  * `POST /api/ai/generate-jd`
+  * `POST /api/ai/interview-questions`
+  * `POST /api/ai/draft-offer`
+
+4. FRONTEND (Next.js App Router)
+--------------------------------
+- Upgrade `/jobs` — Add department/position selectors, salary range, headcount, "Generate JD with AI" button, and Requisition Approval queue for HR
+- Upgrade `/applicants` — Add Kanban Pipeline board + Table view toggle for moving candidates across stages cleanly
+- `/interviews` — Calendar/list view of upcoming interviews, "Schedule Interview" dialog, AI Interview Question generator, and structured Scorecard submission drawer
+- `/offers` — Offer management dashboard, AI Offer Letter editor, send/track status, and Candidate Offer Accept/Decline screen inside `/candidate-dashboard/applications`
+
+5. VERIFICATION CRITERIA
+------------------------
+- Hiring Manager submits a requisition -> HR approves -> job goes live
+- Candidate applies -> AI screens -> HR schedules interview -> Interviewer submits scorecard
+  -> HR sends offer -> Candidate accepts -> HR clicks "Convert to Employee" (Phase 2 integration)
+- Candidate cannot access internal `applicant_notes` or other interviewers' scorecards
+================================================================================

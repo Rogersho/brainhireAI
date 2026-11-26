@@ -1,0 +1,85 @@
+================================================================================
+PHASE 4 — DAILY HR OPERATIONS: ATTENDANCE, SHIFTS & LEAVE / PTO MANAGEMENT
+================================================================================
+
+OBJECTIVE
+---------
+Handle the highest-frequency daily HR workflows smoothly: worker clock-in/out,
+work shifts, holiday calendars, leave/PTO policies & balances, manager/HR leave
+approvals, and a live team out-of-office calendar.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Create `work_schedules`:
+  * id, name (e.g., "Standard 9-5", "Shift A"), start_time (TIME), end_time (TIME),
+    work_days (INT[] e.g. [1,2,3,4,5]), grace_period_minutes (INT DEFAULT 15),
+    daily_hours (NUMERIC DEFAULT 8.0), is_default
+- Create `attendance_logs`:
+  * id, employee_id (FK employees), work_date (DATE),
+    clock_in (TIMESTAMPTZ), clock_out (TIMESTAMPTZ),
+    break_minutes (INT DEFAULT 0), total_hours (NUMERIC), overtime_hours (NUMERIC DEFAULT 0),
+    work_mode ('Office', 'Remote', 'Field'),
+    status ('Present', 'Late', 'Half-Day', 'Absent', 'On Leave', 'Holiday'),
+    notes, approved_by (FK users), UNIQUE (employee_id, work_date)
+- Create `attendance_corrections`:
+  * id, attendance_log_id, employee_id, requested_clock_in, requested_clock_out,
+    reason, status ('Pending', 'Approved', 'Rejected'), reviewed_by, reviewed_at
+- Create `company_holidays`:
+  * id, name, holiday_date (DATE), location_id (nullable FK locations — null = company-wide),
+    is_paid BOOLEAN DEFAULT TRUE
+- Create `leave_types`:
+  * id, name (e.g., 'Annual Leave', 'Sick Leave', 'Parental Leave', 'Unpaid Leave', 'Bereavement'),
+    code, annual_allowance_days (NUMERIC), is_paid BOOLEAN, requires_document BOOLEAN,
+    max_carryover_days (NUMERIC DEFAULT 0), color_hex, is_active
+- Create `leave_balances`:
+  * id, employee_id (FK employees), leave_type_id (FK leave_types), year (INT),
+    allocated_days (NUMERIC), carried_over_days (NUMERIC DEFAULT 0),
+    used_days (NUMERIC DEFAULT 0), pending_days (NUMERIC DEFAULT 0),
+    UNIQUE (employee_id, leave_type_id, year)
+- Create `leave_requests`:
+  * id, employee_id (FK employees), leave_type_id (FK leave_types),
+    start_date (DATE), end_date (DATE), total_days (NUMERIC — excludes weekends & holidays),
+    is_half_day BOOLEAN DEFAULT FALSE, reason, attachment_s3_key (e.g., medical note),
+    status ('Pending', 'Approved', 'Rejected', 'Cancelled'),
+    reviewed_by (FK users), review_note, reviewed_at, created_at
+
+2. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Attendance (`/api/attendance`):
+  * `POST /api/attendance/clock-in` (Employee/Internal staff — prevents double clock-in, calculates Late flag)
+  * `POST /api/attendance/clock-out` (Calculates total_hours & overtime_hours)
+  * `GET /api/attendance/me` (Own attendance logs & monthly summary)
+  * `GET /api/attendance` (HR/Admin see all; Managers see direct reports; filter by date range/dept/status)
+  * `POST /api/attendance/corrections` (Employee requests fix)
+  * `PATCH /api/attendance/corrections/:id` (Manager/HR approves/rejects & updates log)
+  * `GET /api/attendance/export` (HR/Admin — CSV export for payroll)
+- Leave & PTO (`/api/leave`):
+  * `GET/POST/PUT /api/leave/types` (Admin, HRManager)
+  * `GET/POST/DELETE /api/leave/holidays` (All internal read; HR/Admin write)
+  * `GET /api/leave/balances/me` & `GET /api/leave/balances/:employeeId` (HR/Admin, Manager, self)
+  * `POST /api/leave/balances/initialize-year` (Admin, HRManager — auto-seeds annual balances for all active workers)
+  * `POST /api/leave/requests` (Employee — validates balance, checks overlap, auto-computes working days, increments `pending_days`, notifies Manager & HR)
+  * `GET /api/leave/requests` (HR sees all; Managers see team; Employees see own)
+  * `PATCH /api/leave/requests/:id/review` (Manager for direct reports or HR/Admin — transactional balance update: moves `pending_days` -> `used_days` on Approve, releases on Reject, notifies Employee)
+  * `PATCH /api/leave/requests/:id/cancel` (Employee self if still Pending or future)
+  * `GET /api/leave/calendar` (Internal staff — shows who is out of office by month/department)
+
+3. FRONTEND (Next.js App Router)
+--------------------------------
+- Employee Self-Service Hub (`/employee`):
+  * One-click Clock-In / Clock-Out widget with live shift timer & work mode toggle
+  * Quick Leave Balance cards (Annual, Sick, etc.) + "Request Leave" button
+- `/attendance`:
+  * HR & Manager daily attendance board (Present / Late / Remote / On Leave / Absent summary)
+  * Monthly timesheet grid, pending correction approvals, CSV export
+- `/leave`:
+  * Tabs: My Leave | Team Approvals | Out-of-Office Calendar | Leave Policies & Holidays
+  * Smart date-range picker showing calculated working days & remaining balance before submitting
+  * Medical certificate upload to Neon S3 when required by leave type
+
+4. VERIFICATION CRITERIA
+------------------------
+- Employee cannot submit overlapping leave requests or exceed paid leave balance
+- Approving a leave request atomically updates `leave_balances`, marks `attendance_logs` as 'On Leave', and notifies the employee
+- Clock-in/out accurately computes total hours & overtime and exports cleanly to CSV
+================================================================================

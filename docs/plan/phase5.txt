@@ -1,0 +1,90 @@
+================================================================================
+PHASE 5 — PAYROLL, COMPENSATION, EXPENSES & COMPANY ASSET MANAGEMENT
+================================================================================
+
+OBJECTIVE
+---------
+Give HR and Finance a reliable, auditable monthly payroll workflow, compensation
+history tracking, employee payslips, expense claim reimbursements, and company
+equipment/asset inventory management.
+
+1. DATABASE SCHEMA (Neon PostgreSQL)
+------------------------------------
+- Create `compensation_profiles`:
+  * id, employee_id (FK employees), base_salary (NUMERIC(12,2)), currency (VARCHAR(10)),
+    pay_frequency ('Monthly', 'Bi-Weekly'),
+    allowances (JSONB — e.g. [{name: "Housing", amount: 300}, {name: "Transport", amount: 150}]),
+    deductions (JSONB — e.g. [{name: "Health Insurance", amount: 80}, {name: "Tax %", percent: 10}]),
+    bank_name, bank_account_last4, payment_method ('Bank Transfer', 'Check', 'Direct Deposit'),
+    effective_from (DATE), effective_to (DATE nullable), created_by, created_at
+- Create `payroll_runs`:
+  * id, period_year (INT), period_month (INT), label (e.g. "November 2026"),
+    status ('Draft', 'Processing', 'Approved', 'Paid'),
+    total_gross (NUMERIC(14,2)), total_deductions (NUMERIC(14,2)), total_net (NUMERIC(14,2)),
+    employee_count (INT), created_by, approved_by, paid_at, created_at,
+    UNIQUE (period_year, period_month)
+- Create `payslips`:
+  * id, payroll_run_id (FK payroll_runs ON DELETE CASCADE), employee_id (FK employees),
+    base_salary, allowances_total, overtime_pay, bonus_amount, expense_reimbursement,
+    gross_pay, unpaid_leave_deduction, tax_deduction, other_deductions_total, net_pay,
+    breakdown (JSONB — full itemized lines), status ('Draft', 'Issued', 'Paid'),
+    pdf_s3_key, issued_at, UNIQUE (payroll_run_id, employee_id)
+- Create `expense_claims`:
+  * id, employee_id (FK employees), title,
+    category ('Travel', 'Meals', 'Software', 'Equipment', 'Training', 'Other'),
+    amount (NUMERIC(12,2)), currency, expense_date (DATE), description,
+    receipt_s3_key, status ('Pending', 'Approved', 'Rejected', 'Reimbursed'),
+    reviewed_by (FK users), review_note, payroll_run_id (nullable FK payroll_runs), created_at
+- Create `company_assets`:
+  * id, asset_tag (UNIQUE, e.g. AST-0042), name (e.g. "MacBook Pro 14 M4"),
+    category ('Laptop', 'Monitor', 'Phone', 'Access Card', 'Furniture', 'Software License', 'Other'),
+    serial_number, purchase_date, purchase_cost,
+    status ('Available', 'Assigned', 'In Repair', 'Retired'),
+    assigned_employee_id (nullable FK employees), assigned_at, notes, created_at
+- Create `asset_history`:
+  * id, asset_id (FK company_assets), employee_id, action ('Assigned', 'Returned', 'Repaired'),
+    performed_by, notes, created_at
+
+2. BACKEND API & SECURITY (backend/)
+------------------------------------
+- Strict authorization: Compensation & Payroll write access restricted to `Admin` and `HRManager`;
+  all salary/payroll mutations recorded in `audit_logs`!
+- Compensation (`/api/compensation`):
+  * `GET /api/compensation/:employeeId` (Admin, HRManager, or self)
+  * `POST /api/compensation/:employeeId` (Admin, HRManager — closes previous effective record, inserts new revision for full salary history)
+- Payroll (`/api/payroll`):
+  * `GET /api/payroll/runs` (Admin, HRManager)
+  * `POST /api/payroll/runs` (Admin, HRManager — creates draft run & auto-calculates payslips for all active employees using compensation profile + approved unpaid leave + overtime from Phase 4 + approved expenses!)
+  * `PATCH /api/payroll/payslips/:id` (Admin, HRManager — adjust bonus/deductions while run is Draft)
+  * `POST /api/payroll/runs/:id/approve` (Admin) — locks run & issues payslips
+  * `POST /api/payroll/runs/:id/mark-paid` (Admin, HRManager) — marks paid, marks linked expenses as Reimbursed, notifies every employee
+  * `GET /api/payroll/payslips/me` (Employee — view own issued/paid payslips only)
+  * `GET /api/payroll/payslips/:id` (Admin, HRManager, or own Employee)
+- Expenses (`/api/expenses`):
+  * `POST /api/expenses` (Employee — uploads receipt to Neon S3 `uploads/expenses/{userId}/...`)
+  * `GET /api/expenses` (HR/Admin see all; Managers see team; Employees see own)
+  * `PATCH /api/expenses/:id/review` (Manager / HR / Admin — Approve or Reject)
+- Assets (`/api/assets`):
+  * `GET /api/assets` (HR/Admin see full inventory; Employees see assets assigned to themselves)
+  * `POST/PUT /api/assets` (Admin, HRManager)
+  * `POST /api/assets/:id/assign` & `POST /api/assets/:id/return` (Admin, HRManager — writes `asset_history`)
+
+3. FRONTEND (Next.js App Router)
+--------------------------------
+- `/payroll`:
+  * Monthly Payroll Runs table (Draft / Approved / Paid totals)
+  * Interactive Payroll Run Workspace: review each worker's gross, unpaid leave deduction, overtime, bonus, net pay; edit bonuses inline; approve & finalize
+- `/payroll/payslips` (Employee Self-Service):
+  * Clean minimalist printable payslip view (earnings vs. deductions breakdown, YTD summary, print/save as PDF)
+- `/expenses`:
+  * Submit Expense Claim with receipt upload + HR/Manager approval queue + receipt viewer
+- `/assets`:
+  * Company Equipment Inventory table, assign/return modal, and Employee Profile "Assigned Assets" tab (integrated with Offboarding checklist!)
+
+4. VERIFICATION CRITERIA
+------------------------
+- Generating a payroll run accurately pulls active employees, base pay, allowances, unpaid leave deductions, overtime, and approved expenses
+- Locked/Approved payroll runs cannot be silently altered (409 Conflict enforced)
+- Employees can ONLY view their own payslips and compensation (403 on any other employeeId)
+- Every payroll approval and salary change appears in `audit_logs`
+================================================================================
