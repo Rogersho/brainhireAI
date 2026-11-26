@@ -1,21 +1,27 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 
-const bodyFont = Plus_Jakarta_Sans({
-  variable: "--font-body",
+const roboto = Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
-});
-
-const headingFont = Space_Grotesk({
-  variable: "--font-heading",
-  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Brainhire AI | Hire 10x Faster",
-  description: "AI-driven talent acquisition and automated screening to help you hire faster with better accuracy.",
+  title: "Hoobe HR — Minimalist AI Hiring Platform",
+  description:
+    "Hoobe HR brings clarity to hiring with structured AI screening, candidate ranking, and effortless talent workflows.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -24,11 +30,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${bodyFont.variable} ${headingFont.variable}`}>
+    <html lang="en" suppressHydrationWarning className={roboto.variable}>
       <body className="min-h-screen bg-background font-body antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

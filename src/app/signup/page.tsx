@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Brain, Loader2, Building, User } from "lucide-react";
+import { Loader2, Building, User } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -34,9 +35,8 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-background px-4 py-8">
-      <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold mb-6">
-        <Brain className="h-8 w-8 text-primary" />
-        Brainhire AI
+      <Link href="/" className="mb-6 focus:outline-none">
+        <BrandLogo size="lg" />
       </Link>
       
       <Card className="w-full max-w-md border-border shadow-lg">

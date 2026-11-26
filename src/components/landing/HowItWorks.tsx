@@ -1,66 +1,60 @@
-import { Upload, Brain, ListChecks, UserCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 const steps = [
   {
-    icon: Upload,
     step: "01",
-    title: "Post a Job",
-    description: "Create a detailed job posting with requirements, skills, and qualifications.",
+    title: "Publish a role",
+    description: "Define responsibilities, department, and required skills in under a minute.",
   },
   {
-    icon: Brain,
     step: "02",
-    title: "AI Screens Applicants",
-    description: "Our AI analyzes resumes, extracts key data, and evaluates each candidate against your criteria.",
+    title: "Collect resumes",
+    description: "Candidates apply with PDF resumes stored securely and parsed automatically.",
   },
   {
-    icon: ListChecks,
     step: "03",
-    title: "Review Rankings",
-    description: "See candidates ranked by fit with transparent scoring, strengths, and weaknesses.",
+    title: "Run AI evaluation",
+    description: "Hoobe HR scores each applicant with strengths, skill gaps, and clear recommendations.",
   },
   {
-    icon: UserCheck,
     step: "04",
-    title: "Make Informed Decisions",
-    description: "Shortlist top candidates with confidence, backed by AI-generated insights and recommendations.",
+    title: "Shortlist & hire",
+    description: "Move top candidates through review stages while keeping applicants automatically informed.",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 md:py-28 bg-accent/20 dark:bg-muted/20">
-      <div className="container">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">
-            How Brainhire AI Works
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Four simple steps from job posting to perfect hire.
+    <section id="how-it-works" className="py-24 md:py-32 border-t border-border bg-muted/25">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="max-w-xl mb-16">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            Process
           </p>
+          <h2 className="font-heading text-3xl md:text-4xl font-medium tracking-tight text-foreground">
+            From job posting to offer in four calm steps.
+          </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {steps.map((step, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {steps.map((item, i) => (
             <motion.div
-              key={step.step}
-              initial={{ opacity: 0, y: 20 }}
+              key={item.step}
+              initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.15 }}
-              className="text-center"
+              transition={{ duration: 0.35, delay: i * 0.08 }}
+              className="border-t border-border pt-6"
             >
-              <div className="relative mx-auto mb-6">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                  <step.icon className="h-7 w-7 text-primary" />
-                </div>
-                <span className="absolute -top-2 -right-2 font-heading text-xs font-bold text-primary bg-primary/10 rounded-full h-7 w-7 flex items-center justify-center">
-                  {step.step}
-                </span>
-              </div>
-              <h3 className="font-heading text-lg font-semibold text-foreground mb-2">{step.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                {item.step}
+              </span>
+              <h3 className="mt-3 font-heading text-base font-medium text-foreground">
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                {item.description}
+              </p>
             </motion.div>
           ))}
         </div>

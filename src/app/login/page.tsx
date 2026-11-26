@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Brain, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -45,9 +46,8 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-background px-4">
-      <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold mb-8">
-        <Brain className="h-8 w-8 text-primary" />
-        Brainhire AI
+      <Link href="/" className="mb-8 focus:outline-none">
+        <BrandLogo size="lg" />
       </Link>
       
       <Card className="w-full max-w-md border-border shadow-lg">

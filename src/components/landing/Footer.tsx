@@ -1,84 +1,47 @@
-import { Brain, X, Code2, Globe, Mail } from "lucide-react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border bg-background py-16">
-      <div className="container px-4 mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-          {/* Brand Column */}
-          <div className="col-span-1 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-heading text-xl font-bold text-foreground mb-4">
-              <img src="/logo.png" alt="Brainhire AI" className="h-7 w-auto animate-pulse" />
-              <span>Brainhire <span className="text-primary">AI</span></span>
+    <footer className="border-t border-border bg-background py-14">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 pb-10 border-b border-border/70">
+          <div className="space-y-2">
+            <Link href="/">
+              <BrandLogo size="sm" />
             </Link>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-              AI-driven talent acquisition and automated screening to help you hire 10x faster with better accuracy.
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Minimalist AI recruitment and candidate evaluation for modern teams.
             </p>
-            <div className="flex gap-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <X className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Code2 className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Globe className="h-5 w-5" />
-              </a>
-            </div>
           </div>
 
-          {/* Product Links */}
-          <div>
-            <h3 className="font-heading font-semibold mb-6">Product</h3>
-            <ul className="space-y-4">
-              <li><Link href="/screening" className="text-sm text-muted-foreground hover:text-primary transition-colors">AI Screening</Link></li>
-              <li><Link href="/jobs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Job Posting</Link></li>
-              <li><Link href="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">Candidate Management</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Marketplace</Link></li>
-            </ul>
-          </div>
-
-          {/* Company Links */}
-          <div>
-            <h3 className="font-heading font-semibold mb-6">Company</h3>
-            <ul className="space-y-4">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">About</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</a></li>
-              <li><Link href="/settings" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact</Link></li>
-            </ul>
-          </div>
-
-          {/* Newsletter/Contact */}
-          <div>
-            <h3 className="font-heading font-semibold mb-6">Stay Connected</h3>
-            <div className="flex bg-muted/50 rounded-full p-1 pl-4 mb-4 border border-border focus-within:border-primary transition-colors">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="bg-transparent border-none outline-none text-sm w-full py-2 placeholder:text-muted-foreground"
-              />
-              <button className="bg-primary text-white rounded-full px-4 py-2 text-xs font-semibold hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
-                Subscribe
-              </button>
-            </div>
-            <p className="text-[11px] text-muted-foreground px-2">
-              Join 1,000+ teams getting weekly AI hiring tips.
-            </p>
+          <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+            <Link href="/jobs" className="hover:text-foreground transition-colors">
+              Open Jobs
+            </Link>
+            <Link href="/screening" className="hover:text-foreground transition-colors">
+              AI Screening
+            </Link>
+            <Link href="/dashboard" className="hover:text-foreground transition-colors">
+              Dashboard
+            </Link>
+            <Link href="/login" className="hover:text-foreground transition-colors">
+              Sign in
+            </Link>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-muted-foreground">
-            © {currentYear} Brainhire AI.
-          </p>
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <p>© {currentYear} Hoobe HR. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms of Service</a>
-            <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Cookies</a>
+            <a href="#" className="hover:text-foreground transition-colors">
+              Privacy
+            </a>
+            <a href="#" className="hover:text-foreground transition-colors">
+              Terms
+            </a>
           </div>
         </div>
       </div>

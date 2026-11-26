@@ -1,71 +1,75 @@
-import { Brain, BarChart3, Users, FileSearch, Shield, Globe } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Sparkles, ShieldCheck, BarChart3, FileText, Users, Globe } from "lucide-react";
 import { motion } from "framer-motion";
 
 const features = [
   {
-    icon: Brain,
-    title: "AI-Driven Screening",
-    description: "Automatically analyze resumes, extract skills, and evaluate candidates against job requirements using advanced AI.",
+    icon: Sparkles,
+    title: "Structured AI screening",
+    description:
+      "Automatically parse resumes, map core skills, and score every applicant against your exact role criteria.",
   },
   {
-    icon: Shield,
-    title: "Bias Reduction",
-    description: "Our AI is designed to minimize unconscious bias, ensuring fair and equitable evaluation of every applicant.",
+    icon: ShieldCheck,
+    title: "Merit-first evaluation",
+    description:
+      "Standardized scoring rubrics minimize unconscious bias so teams focus strictly on capability and fit.",
   },
   {
     icon: BarChart3,
-    title: "Automated Ranking",
-    description: "Candidates are ranked by fit, skills, and experience. Instantly see your top matches with detailed scoring.",
+    title: "Instant candidate ranking",
+    description:
+      "Surface top talent immediately with clear match percentages and side-by-side strengths.",
   },
   {
-    icon: FileSearch,
-    title: "Transparent Decisions",
-    description: "Every AI decision comes with a clear explanation — see exactly why a candidate was scored the way they were.",
+    icon: FileText,
+    title: "Transparent reasoning",
+    description:
+      "Every AI score includes concise strengths, gaps, and a clear hiring recommendation — never a black box.",
   },
   {
     icon: Users,
-    title: "Talent Pool Integration",
-    description: "Screen candidates from your internal talent pool alongside external applicants in a unified workflow.",
+    title: "Unified talent workspace",
+    description:
+      "Manage job postings, applicants, cloud-stored resumes, and hiring stages in one calm interface.",
   },
   {
     icon: Globe,
-    title: "Multi-Platform Sourcing",
-    description: "Import applicants from external job boards and platforms. All candidates, one intelligent dashboard.",
+    title: "Candidate-friendly portal",
+    description:
+      "Give applicants a clean job board, master CV analysis, and real-time application status updates.",
   },
 ];
 
 export function Features() {
   return (
-    <section id="features" className="py-20 md:py-28 bg-background">
-      <div className="container">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">
-            Everything You Need to Hire Better
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Powerful tools designed to make recruitment smarter, faster, and fairer.
+    <section id="features" className="py-24 md:py-32 border-t border-border bg-background">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="max-w-xl mb-16">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            Capabilities
           </p>
+          <h2 className="font-heading text-3xl md:text-4xl font-medium tracking-tight text-foreground">
+            Everything you need, nothing you don&apos;t.
+          </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-12">
           {features.map((feature, i) => (
             <motion.div
               key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
+              transition={{ duration: 0.35, delay: i * 0.05 }}
+              className="space-y-3"
             >
-              <Card className="h-full border-border hover:border-primary/40 transition-colors">
-                <CardContent className="p-6">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <feature.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-heading text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
-                </CardContent>
-              </Card>
+              <feature.icon className="h-5 w-5 text-foreground stroke-[1.75]" />
+              <h3 className="font-heading text-base font-medium text-foreground">
+                {feature.title}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {feature.description}
+              </p>
             </motion.div>
           ))}
         </div>

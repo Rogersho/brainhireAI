@@ -93,7 +93,7 @@ export default function ProfilePage() {
                      <CardHeader className="flex flex-row items-start justify-between">
                         <div>
                            <CardTitle className="font-heading">Master CV Database</CardTitle>
-                           <CardDescription className="mt-1">Your global CV will be deeply parsed by the Gemini AI Engine.</CardDescription>
+                           <CardDescription className="mt-1">Your global CV will be deeply parsed by the Hoobe HR AI Engine.</CardDescription>
                         </div>
                         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                            <DialogTrigger asChild>
@@ -105,7 +105,7 @@ export default function ProfilePage() {
                            <DialogContent>
                               <DialogHeader>
                                  <DialogTitle>Upload Master Resume</DialogTitle>
-                                 <DialogDescription>Gemini will intelligently parse your PDF, DOC, DOCX, or CSV to rewrite your AI profile mapping.</DialogDescription>
+                                 <DialogDescription>Hoobe HR AI will intelligently parse your PDF, DOC, DOCX, or CSV to build your skill profile.</DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4 mt-4">
                                  {uploadError && (
@@ -119,8 +119,8 @@ export default function ProfilePage() {
                                  </div>
                                  <Button className="w-full font-bold shadow-md" onClick={handleUpload} disabled={!file || uploading}>
                                     {uploading ? (
-                                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing Document with Gemini...</>
-                                    ) : "Submit to BrainHire Engine"}
+                                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing Document with AI...</>
+                                    ) : "Submit to Hoobe HR Engine"}
                                  </Button>
                               </div>
                            </DialogContent>
@@ -141,7 +141,7 @@ export default function ProfilePage() {
                                  </div>
                                  <div>
                                     <p className="font-bold text-success text-lg">CV Parsed & Actively Scanning</p>
-                                    <p className="text-sm text-success/80 mt-1">BrainHire AI is continually scanning the live job market using this profile document.</p>
+                                    <p className="text-sm text-success/80 mt-1">Hoobe HR AI is continually scanning the live job market using this profile document.</p>
                                  </div>
                               </div>
                               {profile?.resumeUrl && (
@@ -166,7 +166,7 @@ export default function ProfilePage() {
                            <CardTitle className="font-heading flex items-center gap-2 text-2xl">
                               <Brain className="h-6 w-6 text-primary" /> Algorithmic Career Analysis
                            </CardTitle>
-                           <CardDescription className="text-base">Generated automatically from your resume via Gemini</CardDescription>
+                           <CardDescription className="text-base">Generated automatically from your resume via Hoobe HR AI</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8 relative z-10">
                            <div>

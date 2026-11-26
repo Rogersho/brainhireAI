@@ -42,7 +42,7 @@ export default function MyApplicationsPage() {
         <Card className="border-border shadow-sm">
           <CardHeader>
             <CardTitle className="font-heading">My Applications</CardTitle>
-            <CardDescription>You have submitted {applications.length} applications through BrainHire.</CardDescription>
+            <CardDescription>You have submitted {applications.length} applications through Hoobe HR.</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (

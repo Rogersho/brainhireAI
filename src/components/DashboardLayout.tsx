@@ -12,6 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -32,8 +33,9 @@ function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarContent>
         <div className="p-4 flex items-center gap-2">
-          <img src="/logo.png" alt="Logo" className="h-8 w-auto shrink-0" />
-          {!collapsed && <span className="font-heading text-lg font-bold text-sidebar-foreground">Brainhire AI</span>}
+          <Link href="/" className="focus:outline-none">
+            <BrandLogo showText={!collapsed} size="md" />
+          </Link>
         </div>
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>

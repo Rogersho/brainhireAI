@@ -8,8 +8,6 @@ import { Testimonials } from "@/components/landing/Testimonials";
 import { CTA } from "@/components/landing/CTA";
 import { Footer } from "@/components/landing/Footer";
 
-import { PublicJobs } from "@/components/landing/PublicJobs";
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-background">

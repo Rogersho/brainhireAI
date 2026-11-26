@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
       <div className="absolute top-4 right-4"><ThemeToggle /></div>
       <div className="w-full max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2 font-heading text-2xl font-bold text-foreground mb-8">
-          <Brain className="h-8 w-8 text-primary" />
-          Brainhire AI
+        <Link href="/" className="flex items-center justify-center mb-8 focus:outline-none">
+          <BrandLogo size="lg" />
         </Link>
 
         <Card className="border-border">
